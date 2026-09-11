@@ -69,6 +69,8 @@ def build_master_dataset():
     
     feature_table['CSO_Flag_Rain'] = cso_rain.astype(int)
     feature_table['Dual_CSO_Flag'] = (cso_rain & cso_sewage).astype(int)
+    feature_table['month'] = feature_table['date'].dt.month
+    feature_table['is_weekend'] = feature_table['date'].dt.dayofweek.isin([5, 6]).astype(int)
     
     # Merge to Water Quality samples
     master_df = pd.merge(df_water, feature_table, on='date', how='left')
