@@ -17,13 +17,15 @@ def model_ilgwang():
     # Target
     df['log_ecoli'] = np.log1p(df['ecoli_max'])
     
-    # Features (Pure Meteorology + Spatial)
+    # Features (Meteorology + Spatial + Gijang Sewage Treatment)
     features = [
         'precip_1d_lag',
         'precip_3d_sum_lag',
         'precip_5d_sum_lag',
         'distance_from_estuary_km',
-        'CSO_Flag_Rain'
+        'CSO_Flag_Rain',
+        'gijang_discharge_1d_lag',
+        'Dual_CSO_Flag'
     ]
     
     X = df[features]
@@ -59,7 +61,7 @@ def model_ilgwang():
     plt.figure(figsize=(10, 6))
     plt.barh(df_imp['Feature'], df_imp['Importance'], color='skyblue')
     plt.xlabel('Importance')
-    plt.title('XGBoost Feature Importance - Ilgwang Water Quality (Meteorology Only)')
+    plt.title('XGBoost Feature Importance - Ilgwang Water Quality (Dual-CSO)')
     
     res_dir = os.path.join(proj_dir, "Results")
     os.makedirs(res_dir, exist_ok=True)
