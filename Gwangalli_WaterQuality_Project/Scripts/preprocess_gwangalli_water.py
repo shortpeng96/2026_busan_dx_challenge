@@ -19,7 +19,7 @@ def clean_microbial_value(val):
             return float(val_str.replace('>', ''))
         except:
             return np.nan
-    val_str = val_str.replace(',', '')
+    val_str = val_str.replace(',', '').replace(' ', '')
     try:
         return float(val_str)
     except:
@@ -27,43 +27,28 @@ def clean_microbial_value(val):
 
 def get_distance(row):
     detail = str(row['examinLcDetail']).upper()
-    beach = str(row['beachKoreanNm']).upper()
     
-    # 다대포 서측(강이랑 가까운 해변)은 기본 거리 0.0km 시작
-    if '서측' in beach:
-        base_dist = 0.0
-    # 다대포 동측(강이랑 먼 해변)은 기본 거리 0.5km 시작
-    else: 
-        base_dist = 0.5
+    if 'A' in detail:
+        return 0.0
+    elif 'B' in detail:
+        return 0.25
+    elif 'C' in detail:
+        return 0.5
+    elif 'D' in detail:
+        return 0.75
+    elif 'E' in detail:
+        return 1.0
         
-    # 각 해변 내에서의 세부 지점(A,B,C) 더하기
-    if 'A' in detail or '우측' in detail:
-        return base_dist + 0.0
-    elif 'B' in detail or '중앙' in detail:
-        return base_dist + 0.25
-    elif 'C' in detail or '좌측' in detail:
-        return base_dist + 0.5
-        
-    return base_dist + 0.25 # Default to center if unknown
+    return 0.5 # Default to center if unknown
 
 def preprocess_water_quality():
-    # Use glob to avoid encoding issues with korean filenames in different environments
-    files = glob.glob("C:\\Sandbox\\Water_Quality\\*다대포*.csv")
+    f = "C:\\Sandbox\\Water_Quality\\busan_beach_광안리.csv"
     
-    df_list = []
-    for f in files:
-        try:
-            df = pd.read_csv(f, encoding='utf-8-sig')
-        except:
-            df = pd.read_csv(f, encoding='cp949')
-        df_list.append(df)
+    try:
+        df_all = pd.read_csv(f, encoding='utf-8-sig')
+    except:
+        df_all = pd.read_csv(f, encoding='cp949', errors='replace')
             
-    if not df_list:
-        print("No Dadaepo water quality files found.")
-        return
-        
-    df_all = pd.concat(df_list, ignore_index=True)
-    
     # Drop rows without date
     df_clean = df_all.dropna(subset=['examinDe']).copy()
     df_clean = df_clean[df_clean['examinDe'].str.strip() != '']
@@ -86,15 +71,14 @@ def preprocess_water_quality():
     cols_to_keep = ['examinDe', 'beachKoreanNm', 'examinLcDetail', 'distance_from_estuary_km', 
                     'ecoli_max', 'enterococcus_max', 'any_exceed']
     
-    # We DO NOT groupby here anymore! We keep all 305 sample rows.
     df_samples = df_clean[cols_to_keep].copy()
     
     print(f"Total Exceedances (Sample level): {df_samples['any_exceed'].sum()} out of {len(df_samples)} samples")
     
     # Save
-    out_dir = "C:\\Sandbox\\Preprocessed"
+    out_dir = "C:\\Sandbox\\Gwangalli_WaterQuality_Project\\Data_Processed"
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "dadaepo_water_samples.csv")
+    out_path = os.path.join(out_dir, "gwangalli_water_samples.csv")
     df_samples.to_csv(out_path, index=False, encoding='utf-8-sig')
     print(f"Saved {len(df_samples)} spatial samples to {out_path}")
 
