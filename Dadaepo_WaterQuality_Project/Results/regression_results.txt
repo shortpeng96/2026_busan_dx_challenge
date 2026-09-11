@@ -1,0 +1,14 @@
+=== XGBoost V2 (공간 확장 + 하수처리장 CSO 결합) 결과 ===
+
+1. Ridge (Baseline):
+   RMSE: 1.862 | R^2: 0.113 | ROC-AUC: 0.717
+
+2. Ridge (Advanced V2):
+   RMSE: 1.779 | R^2: 0.187 | ROC-AUC: 0.715
+
+3. XGBoost (Baseline):
+   RMSE: 1.135 | R^2: 0.669 | ROC-AUC: 0.962
+
+4. XGBoost (Advanced V2):
+   RMSE: 1.113 | R^2: 0.682 | ROC-AUC: 0.969
+
