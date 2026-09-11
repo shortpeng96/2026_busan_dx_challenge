@@ -26,24 +26,25 @@ def clean_microbial_value(val):
         return np.nan
 
 def get_distance(row):
-    # Mapping distance from estuary (West = 0.0, Center = 0.5, East = 1.0)
     detail = str(row['examinLcDetail']).upper()
     beach = str(row['beachKoreanNm']).upper()
     
-    if 'A' in detail or '우측' in detail:
-        return 0.0
-    elif 'B' in detail or '중앙' in detail:
-        return 0.5
-    elif 'C' in detail or '좌측' in detail:
-        return 1.0
-    
-    # Fallback to beach name
+    # 다대포 서측(강이랑 가까운 해변)은 기본 거리 0.0km 시작
     if '서측' in beach:
-        return 0.0
-    elif '동측' in beach:
-        return 1.0
+        base_dist = 0.0
+    # 다대포 동측(강이랑 먼 해변)은 기본 거리 0.5km 시작
+    else: 
+        base_dist = 0.5
         
-    return 0.5 # Default to center if unknown
+    # 각 해변 내에서의 세부 지점(A,B,C) 더하기
+    if 'A' in detail or '우측' in detail:
+        return base_dist + 0.0
+    elif 'B' in detail or '중앙' in detail:
+        return base_dist + 0.25
+    elif 'C' in detail or '좌측' in detail:
+        return base_dist + 0.5
+        
+    return base_dist + 0.25 # Default to center if unknown
 
 def preprocess_water_quality():
     # Use glob to avoid encoding issues with korean filenames in different environments
