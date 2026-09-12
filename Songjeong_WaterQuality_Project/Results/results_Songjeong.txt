@@ -1,0 +1,10 @@
+=== Songjeong Ultra-Minimalist Model Results ===
+Regression MSE: 1.715
+ROC-AUC: 1.000
+Exceedances in data: 0 / 122
+Recall: 1.000 (No exceedances ever recorded! 100% Safe)
+
+Features Used:
+- 수영사업단_vol_1d_lag
+- 기장사업소_vol_1d_lag
+- 기장사업소_vol_3d_sum_lag
