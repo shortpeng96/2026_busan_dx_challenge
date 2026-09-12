@@ -6,8 +6,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.metrics import mean_squared_error, r2_score, roc_auc_score
-from xgboost import XGBRegressor, XGBClassifier
+from sklearn.metrics import roc_auc_score, recall_score, precision_score, confusion_matrix
+from xgboost import XGBClassifier
 
 def model_ilgwang():
     proj_dir = "C:\\Sandbox\\Ilgwang_WaterQuality_Project"
@@ -56,13 +56,37 @@ def model_ilgwang():
     
     y_pred_xgb = xgb_model.predict_proba(X_test_imp)[:, 1]
     
+    # Evaluate with standard (0.5) and conservative (0.15) thresholds
+    y_pred_50 = (y_pred_xgb >= 0.5).astype(int)
+    y_pred_15 = (y_pred_xgb >= 0.15).astype(int)
+    
+    res_dir = os.path.join(proj_dir, "Results")
+    os.makedirs(res_dir, exist_ok=True)
+    
     try:
         xgb_auc = roc_auc_score(y_test_bin, y_pred_xgb)
+        recall_50 = recall_score(y_test_bin, y_pred_50)
+        recall_15 = recall_score(y_test_bin, y_pred_15)
+        
+        with open(os.path.join(res_dir, "classification_results.txt"), "w") as f:
+            f.write("Ilgwang Public Health Classification Results (XGBoost)\n")
+            f.write("="*50 + "\n")
+            f.write(f"ROC-AUC: {xgb_auc:.3f}\n\n")
+            
+            f.write("--- Standard Threshold (0.5) ---\n")
+            f.write(f"Recall (재현율): {recall_50:.3f}\n")
+            f.write(f"Confusion Matrix:\n{confusion_matrix(y_test_bin, y_pred_50)}\n\n")
+            
+            f.write("--- Public Health Threshold (0.15) ---\n")
+            f.write(f"Recall (재현율): {recall_15:.3f}\n")
+            f.write(f"Confusion Matrix:\n{confusion_matrix(y_test_bin, y_pred_15)}\n")
+            
+        print(f"Modeling complete. AUC: {xgb_auc:.3f}")
+        print(f"Recall @ 0.5: {recall_50:.3f}")
+        print(f"Recall @ 0.15: {recall_15:.3f} (Public Health Optimized)")
     except:
         xgb_auc = np.nan
         
-    print(f"Modeling complete. AUC: {xgb_auc:.3f}")
-    
     # Feature Importance
     importance = xgb_model.feature_importances_
     df_imp = pd.DataFrame({'Feature': features, 'Importance': importance}).sort_values('Importance', ascending=True)
