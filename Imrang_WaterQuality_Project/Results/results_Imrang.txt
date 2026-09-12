@@ -1,12 +1,13 @@
-=== Imrang Ultra-Minimalist Model Results ===
-Regression MSE: 2.366
-ROC-AUC: 0.451
-Exceedances in data: 3 / 94
+=== Imrang Ultra-Minimalist Model Results (RAW DATA) ===
+Regression MSE: 2.841
+ROC-AUC: 0.688
+Exceedances in data: 9 / 78
 Recall @ 0.5: 0.000
-Recall @ 0.15 (Public Health): 0.000
+Recall @ 0.15 (Public Health): 0.778
 
 Features Used:
 - precip_3d_sum_lag
+- precip_5d_sum_lag
 - temp_1d_lag
 - temp_daily
 - 정관사업단_vol_1d_lag

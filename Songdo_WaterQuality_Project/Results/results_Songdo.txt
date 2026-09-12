@@ -1,16 +1,12 @@
-=== Songdo Ultra-Minimalist Model Results ===
-Regression MSE: 2.477
-ROC-AUC: 0.693
-Exceedances in data: 3 / 116
-Recall @ 0.5: 0.000
-Recall @ 0.15 (Public Health): 0.000
+=== Songdo Ultra-Minimalist Model Results (RAW DATA) ===
+Regression MSE: 3.199
+ROC-AUC: 0.639
+Exceedances in data: 8 / 97
+Recall @ 0.5: 0.125
+Recall @ 0.15 (Public Health): 0.750
 
 Features Used:
 - precip_5d_sum_lag
-- temp_1d_lag
-- temp_daily
-- month
-- 중앙사업단_vol_1d_lag
 - 중앙사업단_vol_3d_sum_lag
 - 영도사업단_vol_1d_lag
 - 영도사업단_vol_3d_sum_lag
