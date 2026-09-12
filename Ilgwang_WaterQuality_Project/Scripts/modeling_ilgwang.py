@@ -20,14 +20,10 @@ base_dir = "C:\\Sandbox\\2026_busan_dx_challenge"
 proj_dir = os.path.join(base_dir, "Ilgwang_WaterQuality_Project")
 
 print("1. Loading Spatial Dataset...")
-df_master = pd.read_csv(os.path.join(proj_dir, "Data_Processed", "master_dataset_ilgwang.csv"))
+df_master = pd.read_csv(os.path.join(proj_dir, "Data_Processed", "master_dataset_ilgwang_v2.csv"))
 
 # Mapping log target
 df_master['log_ecoli'] = np.log1p(df_master['ecoli_max'])
-
-# Create Interaction Features
-df_master['wind_x_distance'] = df_master['wind_max_1d_lag'] * df_master['distance_from_estuary_km']
-df_master['discharge_x_distance'] = df_master['gijang_discharge_1d_lag'] * df_master['distance_from_estuary_km']
 
 features = [
     'distance_from_estuary_km',
@@ -37,7 +33,9 @@ features = [
     'temp_1d_lag', 'wind_max_1d_lag',
     'gijang_discharge_1d_lag', 'gijang_thresh_1d_lag',
     'CSO_Flag_Rain', 'Dual_CSO_Flag', 'month', 'is_weekend',
-    'wind_x_distance', 'discharge_x_distance'
+    'avg_water_temp', 'avg_water_temp_1d_lag',
+    'tide_range', 'tide_range_1d_lag',
+    'wind_sin', 'wind_cos', 'wind_sin_1d_lag', 'wind_cos_1d_lag'
 ]
 
 y_target = df_master['log_ecoli']
