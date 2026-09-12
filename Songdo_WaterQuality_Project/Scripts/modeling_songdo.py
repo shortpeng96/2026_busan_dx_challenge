@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from sklearn.model_selection import StratifiedKFold
-from xgboost import XGBRegressor
+from xgboost import XGBClassifier
 from sklearn.metrics import roc_auc_score, recall_score
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
@@ -44,28 +44,30 @@ imputer = IterativeImputer(estimator=RandomForestRegressor(n_estimators=10, rand
 X_imp = pd.DataFrame(imputer.fit_transform(X), columns=X.columns)
 
 print("3. Running RFE with AUC Metric...")
-# Use StratifiedKFold to ensure every fold has an exceedance
+# Calculate class imbalance ratio for scale_pos_weight
+scale_pos = (len(y_bin) - y_bin.sum()) / y_bin.sum()
+
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 current_features = list(features)
 results = []
 
 while len(current_features) > 0:
     aucs = []
-    # Highly regularized XGBoost for small dataset
-    xgb = XGBRegressor(n_estimators=50, learning_rate=0.01, max_depth=3, subsample=0.7, colsample_bytree=0.7, reg_lambda=5, random_state=42)
+    # Use Classifier with scale_pos_weight to handle 23:1 imbalance
+    xgb = XGBClassifier(n_estimators=200, learning_rate=0.05, max_depth=3, subsample=0.8, colsample_bytree=0.8, scale_pos_weight=scale_pos, random_state=42)
     
     for train_idx, test_idx in cv.split(X_imp[current_features], y_bin):
         X_train, X_test = X_imp[current_features].iloc[train_idx], X_imp[current_features].iloc[test_idx]
-        y_train_target, y_test_bin = y_target.iloc[train_idx], y_bin.iloc[test_idx]
+        y_train_target, y_test_bin = y_bin.iloc[train_idx], y_bin.iloc[test_idx]
         
         xgb.fit(X_train, y_train_target)
-        preds = np.expm1(xgb.predict(X_test)) / 500.0
+        preds = xgb.predict_proba(X_test)[:, 1]
         try:
             aucs.append(roc_auc_score(y_test_bin, preds))
         except: pass
         
     avg_auc = np.mean(aucs) if aucs else 0
-    xgb.fit(X_imp[current_features], y_target)
+    xgb.fit(X_imp[current_features], y_bin)
     imp = dict(zip(current_features, xgb.feature_importances_))
     results.append((len(current_features), avg_auc, list(current_features)))
     
@@ -79,12 +81,12 @@ best_auc = best[1]
 print(f"\n[BEST RFE] AUC {best_auc:.5f} with {best[0]} features: {best_feats}")
 
 print("4. Evaluating Final Model...")
-xgb_final = XGBRegressor(n_estimators=50, learning_rate=0.01, max_depth=3, subsample=0.7, colsample_bytree=0.7, reg_lambda=5, random_state=42)
+xgb_final = XGBClassifier(n_estimators=200, learning_rate=0.05, max_depth=3, subsample=0.8, colsample_bytree=0.8, scale_pos_weight=scale_pos, random_state=42)
 y_pred_all = np.zeros(len(y_target))
 for train_idx, test_idx in cv.split(X_imp[best_feats], y_bin):
     X_train, X_test = X_imp[best_feats].iloc[train_idx], X_imp[best_feats].iloc[test_idx]
-    xgb_final.fit(X_train, y_target.iloc[train_idx])
-    y_pred_all[test_idx] = np.expm1(xgb_final.predict(X_test)) / 500.0
+    xgb_final.fit(X_train, y_bin.iloc[train_idx])
+    y_pred_all[test_idx] = xgb_final.predict_proba(X_test)[:, 1]
 
 recall_15 = recall_score(y_bin, (y_pred_all >= 0.15).astype(int))
 recall_10 = recall_score(y_bin, (y_pred_all >= 0.10).astype(int))
@@ -97,7 +99,7 @@ for t in np.arange(0.15, 0.0, -0.01):
 
 fp_count = ((y_pred_all >= best_thresh) & (y_bin == 0)).sum()
 
-xgb_final.fit(X_imp[best_feats], y_target)
+xgb_final.fit(X_imp[best_feats], y_bin)
 plt.figure(figsize=(10, 6))
 sns.barplot(x=xgb_final.feature_importances_, y=best_feats)
 plt.title(f'송도 해수욕장 공간/기상 융합 AI (AUC: {best_auc:.3f})')
