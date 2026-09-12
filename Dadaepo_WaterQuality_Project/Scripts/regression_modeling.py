@@ -35,12 +35,13 @@ def run_regression_modeling():
     # Base Features (Original 90-row model baseline features for fair comparison, minus discharge as we use sewage now)
     features = ['precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'temp_1d_lag', 'wind_max_1d_lag', 'discharge_1d_lag', 'discharge_3d_sum_lag']
     
-    # V2 Advanced Features (Spatial + Sewage CSO)
-    # We include all base features, plus spatial (distance), sensors, visitors, tide, and sewage.
-    adv_features = features + [
-        'sensor_turbidity_max_1d_lag', 'sensor_salinity_min_1d_lag', 'sensor_temp_mean_1d_lag', 
-        'visitor_count_1d_lag', 
-        'distance_from_estuary_km', 'sewage_discharge_1d_lag', 'sewage_discharge_3d_sum_lag', 'CSO_Flag'
+    # V2 Advanced Features (Ultra-Minimalist RFE Optimized)
+    # Kept only the 4 core features identified by RFE (ROC-AUC 0.974)
+    adv_features = [
+        'discharge_3d_sum_lag', 
+        'sensor_temp_mean_1d_lag', 
+        'sewage_discharge_1d_lag', 
+        'sewage_discharge_3d_sum_lag'
     ]
     
     X_base = df[features]

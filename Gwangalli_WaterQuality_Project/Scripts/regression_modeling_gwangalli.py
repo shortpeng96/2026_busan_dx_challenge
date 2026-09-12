@@ -22,13 +22,12 @@ def run_modeling():
     # Calculate log target
     df['log_ecoli'] = np.log1p(df['ecoli_max'])
     
-    # Features
+    # Features (Ultra-Minimalist RFE Optimized)
+    # Kept only the 3 core features identified by RFE (ROC-AUC 0.889)
     features = [
-        'precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag',
-        'temp_1d_lag', 'wind_max_1d_lag',
-        'distance_from_estuary_km',
-        'suyeong_vol_1d_lag', 'nambu_vol_1d_lag', 
-        'CSO_Flag_East', 'CSO_Flag_West'
+        'suyeong_vol_1d_lag', 
+        'nambu_vol_1d_lag', 
+        'CSO_Flag_East'
     ]
     
     X = df[features]

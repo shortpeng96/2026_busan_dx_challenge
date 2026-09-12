@@ -17,7 +17,8 @@ def model_ilgwang():
     # Target
     df['log_ecoli'] = np.log1p(df['ecoli_max'])
     
-    # Features (Meteorology + Spatial + Temporal Proxies + Gijang Sewage)
+    # Features (Ultra-Minimalist RFE Optimized)
+    # Dropped is_weekend noise feature (ROC-AUC 0.705)
     features = [
         'precip_1d_lag',
         'precip_3d_sum_lag',
@@ -25,7 +26,6 @@ def model_ilgwang():
         'distance_from_estuary_km',
         'temp_daily',
         'month',
-        'is_weekend',
         'gijang_discharge_1d_lag'
     ]
     

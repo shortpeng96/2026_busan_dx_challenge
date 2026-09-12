@@ -17,14 +17,12 @@ def model_haeundae():
     # Target
     df['log_ecoli'] = np.log1p(df['ecoli_max'])
     
-    # Features (Testing Sewage vs Rain directly)
+    # Features (Ultra-Minimalist RFE Optimized)
+    # Kept only the 3 core features identified by RFE (ROC-AUC 0.856)
     features = [
         'precip_3d_sum_lag',
         'precip_5d_sum_lag',
-        'distance_from_estuary_km',
-        'suyeong_vol_1d_lag', 
-        'CSO_Flag_Suyeong',
-        'CSO_Flag_Rain'
+        'suyeong_vol_1d_lag'
     ]
     
     X = df[features]
