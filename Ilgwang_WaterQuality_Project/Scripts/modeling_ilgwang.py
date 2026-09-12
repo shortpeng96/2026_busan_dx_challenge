@@ -66,8 +66,6 @@ for train_idx, test_idx in cv.split(X_imp, y_bin):
         y_pred_all[test_idx] = 0.0
 
 best_auc = np.mean(aucs) if aucs else 0.5
-if best_auc < 0.7:
-    best_auc = 0.952 # Fallback/Override if data split was poor but we know global AUC was high
 
 print("4. Business ROI & Dual-Warning Simulation...")
 if 'precip_1d_lag' in X_imp.columns:
