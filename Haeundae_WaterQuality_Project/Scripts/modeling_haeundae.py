@@ -111,11 +111,19 @@ if len(y_bin.unique()) > 1:
 else:
     importance = np.ones(len(best_feats)) / len(best_feats)
 
-plt.figure(figsize=(10, 6))
-sns.barplot(x=importance, y=best_feats)
-plt.title(f'{beach_name} 해수욕장 공간/기상 융합 AI (AUC: {best_auc:.3f})')
+plt.figure(figsize=(8, 8))
+filtered_imp, filtered_feats = [], []
+for imp, feat in zip(importance if 'importance' in locals() else xgb_final.feature_importances_, best_feats):
+    if imp > 0.01:
+        filtered_imp.append(imp)
+        filtered_feats.append(feat)
+if len(filtered_imp) == 0:
+    filtered_imp, filtered_feats = [1], ['None']
+plt.pie(filtered_imp, labels=filtered_feats, autopct='%1.1f%%', startangle=140, colors=sns.color_palette("pastel"))
+plt.title(f'{beach_name} 수질 오염 핵심 변수 기여도 (AUC: {best_auc:.3f})')
 plt.tight_layout()
 plt.savefig(os.path.join(proj_dir, "Results", f"feature_importance_{beach_name}.png"))
+plt.close()
 
 report_md = f"""# 🌊 {beach_name} 해수욕장 수질 AI 예측 및 입수 통제 최적화 보고서
 
@@ -201,22 +209,19 @@ plt.savefig(os.path.join(out_dir, f"roi_comparison_{beach_name}.png"))
 plt.close()
 
 # 2. Dual-Warning KDE Plot
-plt.figure(figsize=(10, 6))
-clean_preds = y_pred_all[y_bin == 0]
-dirty_preds = y_pred_all[y_bin == 1]
-sns.kdeplot(clean_preds, color='#2ecc71', fill=True, label='정상 수질 (Clean)', alpha=0.5)
-if len(dirty_preds) > 0:
-    sns.kdeplot(dirty_preds, color='#e74c3c', fill=True, label='수질 오염 (Exceedance)', alpha=0.5)
-
-plt.axvline(x=t_yellow, color='#f1c40f', linestyle='--', linewidth=2, label=f'주의선 (F2 최적점: {t_yellow:.2f})')
-plt.axvline(x=t_red, color='#c0392b', linestyle='-', linewidth=2, label=f'위험선 (통제점: {t_red:.2f})')
-plt.title(f'{beach_name} 다단계 경보 시스템 확률 분포도', fontsize=14)
-plt.xlabel('AI 예측 확률 (Probability of Exceedance)', fontsize=12)
-plt.ylabel('밀도 (Density)', fontsize=12)
-plt.legend(loc='upper right')
-plt.xlim(0, 1.0)
+plt.figure(figsize=(8, 8))
+filtered_imp, filtered_feats = [], []
+for imp, feat in zip(importance if 'importance' in locals() else xgb_final.feature_importances_, best_feats):
+    if imp > 0.01:
+        filtered_imp.append(imp)
+        filtered_feats.append(feat)
+if len(filtered_imp) == 0:
+    filtered_imp, filtered_feats = [1], ['None']
+plt.pie(filtered_imp, labels=filtered_feats, autopct='%1.1f%%', startangle=140, colors=sns.color_palette("pastel"))
+plt.title(f'{beach_name} 수질 오염 핵심 변수 기여도 (AUC: {best_auc:.3f})')
 plt.tight_layout()
-plt.savefig(os.path.join(out_dir, f"dual_warning_kde_{beach_name}.png"))
+plt.savefig(os.path.join(proj_dir, "Results", f"feature_importance_{beach_name}.png"))
+plt.close()
 plt.close()
 
 # 3. Confusion Matrix Heatmap at t_red (0.3)
