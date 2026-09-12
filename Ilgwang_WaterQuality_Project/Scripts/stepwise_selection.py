@@ -27,7 +27,7 @@ all_candidates = [
     'dry_days_count'
 ]
 
-y_target = df_master['ecoli_max'] > 500
+y_target = df_master['any_exceed'].astype(int)
 X_full = df_master[all_candidates]
 
 # Imputation
