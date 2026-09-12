@@ -28,14 +28,15 @@ df_master['log_ecoli'] = np.log1p(df_master['ecoli_max'])
 features = [
     'distance_from_estuary_km',
     'precip_daily', 'temp_daily', 'wind_max',
-    'gijang_discharge_m3_day', 'discharge_95th_thresh',
-    'precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'precip_5d_sum_lag',
-    'temp_1d_lag', 'wind_max_1d_lag',
+    'gijang_discharge_m3_day', 
+    'precip_1d_lag', 'precip_3d_sum_lag', 'precip_5d_sum_lag',
+    'wind_max_1d_lag',
     'gijang_discharge_1d_lag', 'gijang_thresh_1d_lag',
-    'CSO_Flag_Rain', 'Dual_CSO_Flag', 'month', 'is_weekend',
+    'Dual_CSO_Flag', 'month', 'is_weekend',
     'avg_water_temp', 'avg_water_temp_1d_lag',
     'tide_range', 'tide_range_1d_lag',
-    'wind_sin', 'wind_cos', 'wind_sin_1d_lag', 'wind_cos_1d_lag'
+    'wind_sin', 'wind_cos', 'wind_sin_1d_lag', 'wind_cos_1d_lag',
+    'dry_days_count'
 ]
 
 y_target = df_master['log_ecoli']
