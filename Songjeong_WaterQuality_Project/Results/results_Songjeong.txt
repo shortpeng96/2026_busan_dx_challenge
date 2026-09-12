@@ -1,10 +1,8 @@
-=== Songjeong Ultra-Minimalist Model Results (RAW DATA) ===
-Regression MSE: 2.627
-ROC-AUC: 0.472
-Exceedances in data: 2 / 99
-Recall @ 0.5: 0.000
-Recall @ 0.15 (Public Health): 0.000
+=== Songjeong Spatial-Wind AI Results ===
+ROC-AUC: 0.989
+Exceedances in data: 6 / 534
+100% Recall Threshold: 0.02 (False Positives: 88/528)
 
 Features Used:
-- temp_1d_lag
-- month
+- precip_5d_sum_lag
+- 기장사업소_vol_1d_lag
