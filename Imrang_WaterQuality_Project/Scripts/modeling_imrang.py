@@ -189,3 +189,60 @@ with open(os.path.join(proj_dir, "Results", f"results_{beach_name}.txt"), "w", e
     f.write(report_md)
 
 print(f"\nDone! Saved standardized report for {beach_name}.")
+
+
+from sklearn.metrics import confusion_matrix
+import matplotlib.patches as mpatches
+
+out_dir = os.path.join(proj_dir, "Results")
+
+# 1. ROI Comparison Chart (False Positives)
+plt.figure(figsize=(8, 6))
+labels = ['기존 관행 (비 3.0mm 이상)', 'AI (위험선 0.3 통제)']
+fp_values = [baseline_fp, fp_red]
+colors = ['#e74c3c', '#3498db']
+bars = plt.bar(labels, fp_values, color=colors, width=0.5)
+plt.title(f'{beach_name} 오탐(억울한 영업정지) 발생 건수 비교', fontsize=14)
+plt.ylabel('오탐 건수 (False Positives)', fontsize=12)
+for bar in bars:
+    yval = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, yval + (max(fp_values)*0.01), int(yval), ha='center', va='bottom', fontsize=12, fontweight='bold')
+plt.tight_layout()
+plt.savefig(os.path.join(out_dir, f"roi_comparison_{beach_name}.png"))
+plt.close()
+
+# 2. Dual-Warning KDE Plot
+plt.figure(figsize=(10, 6))
+clean_preds = y_pred_all[y_bin == 0]
+dirty_preds = y_pred_all[y_bin == 1]
+sns.kdeplot(clean_preds, color='#2ecc71', fill=True, label='정상 수질 (Clean)', alpha=0.5)
+if len(dirty_preds) > 0:
+    sns.kdeplot(dirty_preds, color='#e74c3c', fill=True, label='수질 오염 (Exceedance)', alpha=0.5)
+
+plt.axvline(x=t_yellow, color='#f1c40f', linestyle='--', linewidth=2, label=f'주의선 (F2 최적점: {t_yellow:.2f})')
+plt.axvline(x=t_red, color='#c0392b', linestyle='-', linewidth=2, label=f'위험선 (통제점: {t_red:.2f})')
+plt.title(f'{beach_name} 다단계 경보 시스템 확률 분포도', fontsize=14)
+plt.xlabel('AI 예측 확률 (Probability of Exceedance)', fontsize=12)
+plt.ylabel('밀도 (Density)', fontsize=12)
+plt.legend(loc='upper right')
+plt.xlim(0, 1.0)
+plt.tight_layout()
+plt.savefig(os.path.join(out_dir, f"dual_warning_kde_{beach_name}.png"))
+plt.close()
+
+# 3. Confusion Matrix Heatmap at t_red (0.3)
+cm = confusion_matrix(y_bin, (y_pred_all >= t_red).astype(int))
+# cm structure:
+# [[TN, FP]
+#  [FN, TP]]
+plt.figure(figsize=(7, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, 
+            xticklabels=['정상 예측', '위험 예측'], 
+            yticklabels=['실제 정상', '실제 위험'],
+            annot_kws={"size": 16, "weight": "bold"})
+plt.title(f'{beach_name} 혼동 행렬 (위험 임계값 {t_red:.2f})', fontsize=14)
+plt.xlabel('AI 예측 (Predicted)', fontsize=12)
+plt.ylabel('실제 수질 (Actual)', fontsize=12)
+plt.tight_layout()
+plt.savefig(os.path.join(out_dir, f"confusion_matrix_{beach_name}.png"))
+plt.close()
