@@ -3,7 +3,7 @@ import numpy as np
 import os
 from sklearn.model_selection import StratifiedKFold
 from xgboost import XGBClassifier
-from sklearn.metrics import roc_auc_score, recall_score, fbeta_score
+from sklearn.metrics import roc_auc_score, recall_score, fbeta_score, confusion_matrix
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.ensemble import RandomForestRegressor
@@ -20,64 +20,89 @@ base_dir = "C:\\Sandbox\\2026_busan_dx_challenge"
 proj_dir = os.path.join(base_dir, "Ilgwang_WaterQuality_Project")
 
 print("1. Loading Spatial Dataset...")
-df_master = pd.read_csv(os.path.join(proj_dir, "Data_Processed\\master_dataset_ilgwang.csv"))
+df_master = pd.read_csv(os.path.join(proj_dir, "Data_Processed", "master_dataset_ilgwang.csv"))
 
-# Map target properly depending on the dataset structure
-if 'ecoli' in df_master.columns:
-    df_master['log_ecoli'] = np.log1p(df_master['ecoli'])
-elif 'ecoli_max' in df_master.columns:
-    df_master['log_ecoli'] = np.log1p(df_master['ecoli_max'])
+# Mapping log target
+df_master['log_ecoli'] = np.log1p(df_master['ecoli_max'])
 
-if 'any_exceed' not in df_master.columns:
-    df_master['any_exceed'] = (np.expm1(df_master['log_ecoli']) >= 500).astype(int)
+# Create Interaction Features
+df_master['wind_x_distance'] = df_master['wind_max_1d_lag'] * df_master['distance_from_estuary_km']
+df_master['discharge_x_distance'] = df_master['gijang_discharge_1d_lag'] * df_master['distance_from_estuary_km']
 
-best_feats = ['precip_1d_lag', 'precip_5d_sum_lag', 'temp_daily', 'gijang_discharge_1d_lag']
+features = [
+    'distance_from_estuary_km',
+    'precip_daily', 'temp_daily', 'wind_max',
+    'gijang_discharge_m3_day', 'discharge_95th_thresh',
+    'precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'precip_5d_sum_lag',
+    'temp_1d_lag', 'wind_max_1d_lag',
+    'gijang_discharge_1d_lag', 'gijang_thresh_1d_lag',
+    'CSO_Flag_Rain', 'Dual_CSO_Flag', 'month', 'is_weekend',
+    'wind_x_distance', 'discharge_x_distance'
+]
+
+y_target = df_master['log_ecoli']
 y_bin = df_master['any_exceed'].astype(int)
-X = df_master[best_feats]
+X = df_master[features]
 
 print("2. Imputing Missing Values...")
 imputer = IterativeImputer(estimator=RandomForestRegressor(n_estimators=10, random_state=42), random_state=42, max_iter=5)
 X_imp = pd.DataFrame(imputer.fit_transform(X), columns=X.columns)
-# Restore target mapping if it was dropped during some operations
-if len(y_bin.unique()) < 2:
-    print("Warning: Only one class in y_bin. Adjusting manually for simulation.")
-    y_bin.iloc[-1] = 1 # Force at least one exceedance for testing if it's perfectly clean
 
+print("3. Running RFE with AUC Metric...")
 scale_pos = (len(y_bin) - y_bin.sum()) / max(1, y_bin.sum())
 
-print("3. Evaluating Final Model...")
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-xgb_final = XGBClassifier(n_estimators=150, learning_rate=0.05, max_depth=3, subsample=0.8, colsample_bytree=0.8, scale_pos_weight=scale_pos, random_state=42)
+current_features = list(features)
+results = []
 
-y_pred_all = np.zeros(len(y_bin))
-aucs = []
-for train_idx, test_idx in cv.split(X_imp, y_bin):
-    X_train, X_test = X_imp.iloc[train_idx], X_imp.iloc[test_idx]
-    y_train, y_test = y_bin.iloc[train_idx], y_bin.iloc[test_idx]
+while len(current_features) > 0:
+    aucs = []
+    xgb = XGBClassifier(n_estimators=150, learning_rate=0.05, max_depth=3, subsample=0.8, colsample_bytree=0.8, scale_pos_weight=scale_pos, random_state=42)
     
-    # Check if there is only 1 class in training data for this fold
+    for train_idx, test_idx in cv.split(X_imp[current_features], y_bin):
+        X_train, X_test = X_imp[current_features].iloc[train_idx], X_imp[current_features].iloc[test_idx]
+        y_train, y_test = y_bin.iloc[train_idx], y_bin.iloc[test_idx]
+        
+        if len(y_train.unique()) > 1:
+            xgb.fit(X_train, y_train)
+            preds = xgb.predict_proba(X_test)[:, 1]
+            try: aucs.append(roc_auc_score(y_test, preds))
+            except: pass
+            
+    avg_auc = np.mean(aucs) if aucs else 0.5
+    if len(y_bin.unique()) > 1:
+        xgb.fit(X_imp[current_features], y_bin)
+        imp = dict(zip(current_features, xgb.feature_importances_))
+    else:
+        imp = {f: 1.0/len(current_features) for f in current_features}
+        
+    results.append((len(current_features), avg_auc, list(current_features)))
+    
+    if len(current_features) == 1: break
+    least_important = min(imp, key=imp.get)
+    current_features.remove(least_important)
+
+best = max(results, key=lambda x: x[1])
+best_feats = best[2]
+best_auc = best[1]
+print(f"\\n[BEST RFE] AUC {best_auc:.5f} with {best[0]} features: {best_feats}")
+
+print("4. Evaluating Final Model...")
+xgb_final = XGBClassifier(n_estimators=150, learning_rate=0.05, max_depth=3, subsample=0.8, colsample_bytree=0.8, scale_pos_weight=scale_pos, random_state=42)
+y_pred_all = np.zeros(len(y_bin))
+for train_idx, test_idx in cv.split(X_imp[best_feats], y_bin):
+    X_train, X_test = X_imp[best_feats].iloc[train_idx], X_imp[best_feats].iloc[test_idx]
+    y_train = y_bin.iloc[train_idx]
     if len(y_train.unique()) > 1:
         xgb_final.fit(X_train, y_train)
-        preds = xgb_final.predict_proba(X_test)[:, 1]
-        y_pred_all[test_idx] = preds
-        try: aucs.append(roc_auc_score(y_test, preds))
-        except: pass
-    else:
-        y_pred_all[test_idx] = 0.0
+        y_pred_all[test_idx] = xgb_final.predict_proba(X_test)[:, 1]
 
-best_auc = np.mean(aucs) if aucs else 0.5
-
-print("4. Business ROI & Dual-Warning Simulation...")
+print("5. Business ROI & Dual-Warning Simulation...")
 if 'precip_1d_lag' in X_imp.columns:
     baseline_preds = (X_imp['precip_1d_lag'] >= 3.0).astype(int)
-elif 'precipitation_mm' in X_imp.columns:
-    baseline_preds = (X_imp['precipitation_mm'] >= 3.0).astype(int)
 else:
-    # Estimate baseline FP from typical weather (around 30% of days have rain)
-    baseline_preds = np.random.choice([0, 1], size=len(y_bin), p=[0.7, 0.3])
-
+    baseline_preds = np.zeros(len(y_bin))
 baseline_fp = ((baseline_preds == 1) & (y_bin == 0)).sum()
-baseline_recall = recall_score(y_bin, baseline_preds)
 
 best_f2 = 0
 t_yellow = 0.01
@@ -102,16 +127,16 @@ if baseline_fp > 0:
 else:
     reduction_pct = 0.0
 
-# Fit on all data for feature importance
 if len(y_bin.unique()) > 1:
-    xgb_final.fit(X_imp, y_bin)
-    importance = xgb_final.feature_importances_
-else:
-    importance = np.ones(len(best_feats)) / len(best_feats)
+    xgb_final.fit(X_imp[best_feats], y_bin)
 
+# Visualizations
+out_dir = os.path.join(proj_dir, "Results")
+
+# Pie Chart
 plt.figure(figsize=(8, 8))
 filtered_imp, filtered_feats = [], []
-for imp, feat in zip(importance if 'importance' in locals() else xgb_final.feature_importances_, best_feats):
+for imp, feat in zip(xgb_final.feature_importances_, best_feats):
     if imp > 0.01:
         filtered_imp.append(imp)
         filtered_feats.append(feat)
@@ -120,9 +145,57 @@ if len(filtered_imp) == 0:
 plt.pie(filtered_imp, labels=filtered_feats, autopct='%1.1f%%', startangle=140, colors=sns.color_palette("pastel"))
 plt.title(f'{beach_name} 수질 오염 핵심 변수 기여도 (AUC: {best_auc:.3f})')
 plt.tight_layout()
-plt.savefig(os.path.join(proj_dir, "Results", f"feature_importance_{beach_name}.png"))
+plt.savefig(os.path.join(out_dir, f"feature_importance_{beach_name}.png"))
 plt.close()
 
+# ROI Comparison
+plt.figure(figsize=(8, 6))
+labels = ['기존 관행 (비 3.0mm 이상)', 'AI (위험선 0.3 통제)']
+fp_values = [baseline_fp, fp_red]
+colors = ['#e74c3c', '#3498db']
+bars = plt.bar(labels, fp_values, color=colors, width=0.5)
+plt.title(f'{beach_name} 오탐(억울한 영업정지) 발생 건수 비교', fontsize=14)
+plt.ylabel('오탐 건수 (False Positives)', fontsize=12)
+for bar in bars:
+    yval = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, yval + (max(fp_values)*0.01), int(yval), ha='center', va='bottom', fontsize=12, fontweight='bold')
+plt.tight_layout()
+plt.savefig(os.path.join(out_dir, f"roi_comparison_{beach_name}.png"))
+plt.close()
+
+# KDE
+plt.figure(figsize=(10, 6))
+clean_preds = y_pred_all[y_bin == 0]
+dirty_preds = y_pred_all[y_bin == 1]
+sns.kdeplot(clean_preds, color='#2ecc71', fill=True, label='정상 수질 (Clean)', alpha=0.5)
+if len(dirty_preds) > 0:
+    sns.kdeplot(dirty_preds, color='#e74c3c', fill=True, label='수질 오염 (Exceedance)', alpha=0.5)
+plt.axvline(x=t_yellow, color='#f1c40f', linestyle='--', linewidth=2, label=f'주의선 (F2 최적점: {t_yellow:.2f})')
+plt.axvline(x=t_red, color='#c0392b', linestyle='-', linewidth=2, label=f'위험선 (통제점: {t_red:.2f})')
+plt.title(f'{beach_name} 다단계 경보 시스템 확률 분포도', fontsize=14)
+plt.xlabel('AI 예측 확률 (Probability of Exceedance)', fontsize=12)
+plt.ylabel('밀도 (Density)', fontsize=12)
+plt.legend(loc='upper right')
+plt.xlim(0, 1.0)
+plt.tight_layout()
+plt.savefig(os.path.join(out_dir, f"dual_warning_kde_{beach_name}.png"))
+plt.close()
+
+# Confusion Matrix
+cm = confusion_matrix(y_bin, (y_pred_all >= t_red).astype(int))
+plt.figure(figsize=(7, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, 
+            xticklabels=['정상 예측', '위험 예측'], 
+            yticklabels=['실제 정상', '실제 위험'],
+            annot_kws={"size": 16, "weight": "bold"})
+plt.title(f'{beach_name} 혼동 행렬 (위험 임계값 {t_red:.2f})', fontsize=14)
+plt.xlabel('AI 예측 (Predicted)', fontsize=12)
+plt.ylabel('실제 수질 (Actual)', fontsize=12)
+plt.tight_layout()
+plt.savefig(os.path.join(out_dir, f"confusion_matrix_{beach_name}.png"))
+plt.close()
+
+# Report
 report_md = f"""# 🌊 {beach_name} 해수욕장 수질 AI 예측 및 입수 통제 최적화 보고서
 
 본 보고서는 해양 기상 변수와 공간 데이터를 융합하여 수질 오염도(대장균/장구균)를 예측하고, 시민의 안전과 지역 상권의 피해를 동시에 고려한 AI 기반 다단계 입수 통제 시스템의 분석 결과입니다.
@@ -170,7 +243,7 @@ report_md = f"""# 🌊 {beach_name} 해수욕장 수질 AI 예측 및 입수 통
 AI가 분석한 {beach_name}의 수질을 결정짓는 상위 핵심 요인입니다.
 """
 for i, feat in enumerate(best_feats[:3]):
-    report_md += f"{i+1}. `{feat}`: AI가 채택한 강력한 오염 인자\n"
+    report_md += f"{i+1}. `{feat}`: AI가 채택한 강력한 오염 인자\\n"
 
 report_md += f"""
 ---
@@ -180,61 +253,7 @@ report_md += f"""
 * **한계 및 고도화 방안**: 본 모델은 1일 1회 집계된 데이터를 기반으로 학습되어, 돌발적인 오폐수 유출 등 시간 단위의 급격한 변화를 실시간으로 감지하는 데는 한계가 존재함. 향후 실시간 해수 오염도 측정 IoT 센서가 도입된다면 본 AI 파이프라인과 결합하여 '시간별 수질 예측 통제 시스템'으로 고도화할 수 있음.
 """
 
-with open(os.path.join(proj_dir, "Results", f"results_{beach_name}.txt"), "w", encoding='utf-8') as f:
+with open(os.path.join(out_dir, f"results_{beach_name}.txt"), "w", encoding='utf-8') as f:
     f.write(report_md)
 
-print(f"\nDone! Saved standardized report for {beach_name}.")
-
-
-from sklearn.metrics import confusion_matrix
-import matplotlib.patches as mpatches
-
-out_dir = os.path.join(proj_dir, "Results")
-
-# 1. ROI Comparison Chart (False Positives)
-plt.figure(figsize=(8, 6))
-labels = ['기존 관행 (비 3.0mm 이상)', 'AI (위험선 0.3 통제)']
-fp_values = [baseline_fp, fp_red]
-colors = ['#e74c3c', '#3498db']
-bars = plt.bar(labels, fp_values, color=colors, width=0.5)
-plt.title(f'{beach_name} 오탐(억울한 영업정지) 발생 건수 비교', fontsize=14)
-plt.ylabel('오탐 건수 (False Positives)', fontsize=12)
-for bar in bars:
-    yval = bar.get_height()
-    plt.text(bar.get_x() + bar.get_width()/2, yval + (max(fp_values)*0.01), int(yval), ha='center', va='bottom', fontsize=12, fontweight='bold')
-plt.tight_layout()
-plt.savefig(os.path.join(out_dir, f"roi_comparison_{beach_name}.png"))
-plt.close()
-
-# 2. Dual-Warning KDE Plot
-plt.figure(figsize=(8, 8))
-filtered_imp, filtered_feats = [], []
-for imp, feat in zip(importance if 'importance' in locals() else xgb_final.feature_importances_, best_feats):
-    if imp > 0.01:
-        filtered_imp.append(imp)
-        filtered_feats.append(feat)
-if len(filtered_imp) == 0:
-    filtered_imp, filtered_feats = [1], ['None']
-plt.pie(filtered_imp, labels=filtered_feats, autopct='%1.1f%%', startangle=140, colors=sns.color_palette("pastel"))
-plt.title(f'{beach_name} 수질 오염 핵심 변수 기여도 (AUC: {best_auc:.3f})')
-plt.tight_layout()
-plt.savefig(os.path.join(proj_dir, "Results", f"feature_importance_{beach_name}.png"))
-plt.close()
-plt.close()
-
-# 3. Confusion Matrix Heatmap at t_red (0.3)
-cm = confusion_matrix(y_bin, (y_pred_all >= t_red).astype(int))
-# cm structure:
-# [[TN, FP]
-#  [FN, TP]]
-plt.figure(figsize=(7, 6))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, 
-            xticklabels=['정상 예측', '위험 예측'], 
-            yticklabels=['실제 정상', '실제 위험'],
-            annot_kws={"size": 16, "weight": "bold"})
-plt.title(f'{beach_name} 혼동 행렬 (위험 임계값 {t_red:.2f})', fontsize=14)
-plt.xlabel('AI 예측 (Predicted)', fontsize=12)
-plt.ylabel('실제 수질 (Actual)', fontsize=12)
-plt.tight_layout()
-plt.savefig(os.path.join(out_dir, f"confusion_matrix_{beach_name}.png"))
-plt.close()
+print(f"\\nDone! Saved standardized report for {beach_name}.")
