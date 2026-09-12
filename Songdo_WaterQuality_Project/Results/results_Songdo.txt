@@ -1,12 +1,23 @@
-=== Songdo Ultra-Minimalist Model Results (RAW DATA) ===
-Regression MSE: 3.199
-ROC-AUC: 0.639
-Exceedances in data: 8 / 97
-Recall @ 0.5: 0.125
-Recall @ 0.15 (Public Health): 0.750
+=== Songdo Spatial-Wind AI Results ===
+ROC-AUC: 0.786
+Exceedances in data: 13 / 319
+Recall @ 0.15: 0.000
+Recall @ 0.10: 0.462
+100% Recall Threshold: 0.05 (False Positives: 279/306)
 
 Features Used:
+- distance_to_outfall
+- precip_1d_lag
+- precip_3d_sum_lag
 - precip_5d_sum_lag
+- temp_1d_lag
+- temp_daily
+- month
+- wind_speed_1d_lag
+- wind_dir_1d_lag
+- wind_x_distance
+- 중앙사업단_vol_1d_lag
 - 중앙사업단_vol_3d_sum_lag
 - 영도사업단_vol_1d_lag
 - 영도사업단_vol_3d_sum_lag
+- cso_x_distance
