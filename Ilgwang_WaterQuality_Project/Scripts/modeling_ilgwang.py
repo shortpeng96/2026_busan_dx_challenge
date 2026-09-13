@@ -230,3 +230,14 @@ plt.savefig(os.path.join(out_dir, f"confusion_matrix_{beach_name}.png"))
 plt.close()
 
 print(f"\nDone! Saved standardized report and charts for {beach_name}.")
+
+
+# --- ERROR DUMP FOR AGENTIC ANALYSIS ---
+error_df = X_imp_full.copy()
+error_df["actual"] = y_bin
+error_df["predicted_prob"] = y_pred_all
+error_df["predicted_class"] = (y_pred_all >= 0.30).astype(int)
+error_df["is_error"] = error_df["actual"] != error_df["predicted_class"]
+errors_only = error_df[error_df["is_error"] == True]
+errors_only.to_csv(os.path.join(out_dir, "error_analysis_dump.csv"), index=False)
+print(f"Dumped {len(errors_only)} error cases to error_analysis_dump.csv")

@@ -29,10 +29,14 @@ for precip in df_daily_precip['precipitation_mm']:
     dry_days.append(current_dry_count)
 
 df_daily_precip['dry_days_count'] = dry_days
-# The dry_days_count for TODAY is the number of dry days up to today. 
-# But usually, if it rains today, dry days is 0. If we want "how many days before today were dry", 
-# we can use shift(1). The user said: "해당 일자 기준으로 비가 오지 않은 연속 일수"
-df_daily_precip['dry_days_count'] = df_daily_precip['dry_days_count']
+
+# We need the antecedent dry days BEFORE it rained. So we shift by 1.
+df_daily_precip['antecedent_dry_days'] = df_daily_precip['dry_days_count'].shift(1).fillna(0)
+
+# Calculate First Flush Non-Point Source Potential (NPS Potential)
+# NPS = Rainfall * (Dry days before rainfall + 1)
+df_daily_precip['nps_first_flush'] = df_daily_precip['precipitation_mm'] * (df_daily_precip['antecedent_dry_days'] + 1)
+
 df_daily_precip['date'] = pd.to_datetime(df_daily_precip['date'])
 
 print("3. Merging with Master Dataset...")
@@ -40,7 +44,7 @@ master_path = os.path.join(proj_dir, "Data_Processed", "master_dataset_ilgwang_v
 df_master = pd.read_csv(master_path)
 df_master['date'] = pd.to_datetime(df_master['date'])
 
-df_master = pd.merge(df_master, df_daily_precip[['date', 'dry_days_count']], on='date', how='left')
+df_master = pd.merge(df_master, df_daily_precip[['date', 'antecedent_dry_days', 'nps_first_flush']], on='date', how='left')
 
 # Save updated master dataset
 df_master.to_csv(master_path, index=False, encoding='utf-8-sig')

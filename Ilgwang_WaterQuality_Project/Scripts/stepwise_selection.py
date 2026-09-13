@@ -24,7 +24,7 @@ all_candidates = [
     'avg_water_temp', 'avg_water_temp_1d_lag',
     'tide_range', 'tide_range_1d_lag',
     'wind_sin', 'wind_cos', 'wind_sin_1d_lag', 'wind_cos_1d_lag',
-    'dry_days_count'
+    'dry_days_count', 'antecedent_dry_days', 'nps_first_flush'
 ]
 
 y_target = df_master['any_exceed'].astype(int)
