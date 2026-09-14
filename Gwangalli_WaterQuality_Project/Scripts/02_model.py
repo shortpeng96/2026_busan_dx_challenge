@@ -1,6 +1,6 @@
 """
-02_model.py - Dadaepo Beach Water Quality Prediction Model (Advanced)
-Trains XGBoost model on master_dataset_v2.csv and applies Dual-Threshold Logic
+02_model.py - Gwangalli Beach Water Quality Prediction Model (Advanced)
+Trains XGBoost model on master_dataset.csv and applies Dual-Threshold Logic
 """
 import pandas as pd
 import numpy as np
@@ -18,11 +18,11 @@ PROC = os.path.join(BASE, 'Data_Processed')
 RES  = os.path.join(BASE, 'Results')
 os.makedirs(RES, exist_ok=True)
 
-BEACH = 'Dadaepo'
+BEACH = 'Gwangalli'
 print(f"[{BEACH}] 02_model.py starting...")
 
 # 1. Load dataset
-csv_path = os.path.join(PROC, 'master_dataset_v2.csv')
+csv_path = os.path.join(PROC, 'master_dataset.csv')
 df = pd.read_csv(csv_path)
 
 if 'any_exceed' not in df.columns:
@@ -35,21 +35,25 @@ y_bin = df['any_exceed'].astype(int)
 
 if 'log_ecoli' not in df.columns:
     if 'ecoli' in df.columns:
+        df['ecoli'] = df['ecoli'].fillna(df['ecoli'].median())
         df['log_ecoli'] = np.log1p(df['ecoli'])
     elif 'ecoli_max' in df.columns:
+        df['ecoli_max'] = df['ecoli_max'].fillna(df['ecoli_max'].median())
         df['log_ecoli'] = np.log1p(df['ecoli_max'])
 
 if 'log_entero' not in df.columns:
     if 'enterococcus_max' in df.columns:
+        df['enterococcus_max'] = df['enterococcus_max'].fillna(df['enterococcus_max'].median())
         df['log_entero'] = np.log1p(df['enterococcus_max'])
     elif 'enterococcus' in df.columns:
+        df['enterococcus'] = df['enterococcus'].fillna(df['enterococcus'].median())
         df['log_entero'] = np.log1p(df['enterococcus'])
 
 y_target = df[['log_ecoli', 'log_entero']] if 'log_entero' in df.columns else df[['log_ecoli']]
 
 EXCLUDE = ['ecoli_max', 'ecoli', 'enterococcus_max', 'enterococcus', 'ecoli_exceed',
            'enterococcus_exceed', 'any_exceed', 'log_ecoli', 'log_entero', 'date',
-           'examinLcDetail']
+           'examinLcDetail', 'examinDe', 'beachKoreanNm', 'year']
 feat_cols = [c for c in df.columns
              if c not in EXCLUDE
              and df[c].dtype != 'object'
@@ -65,20 +69,18 @@ imputer = IterativeImputer(
 )
 imp_data = imputer.fit_transform(X)
 valid_cols = [c for c in feat_cols if X[c].notna().any()] # Manually find valid columns
-# IterativeImputer drops columns that are all NaN. It returns columns in the order of valid_cols.
 if imp_data.shape[1] < len(feat_cols):
     X_imp = pd.DataFrame(imp_data, columns=valid_cols)
     feat_cols = valid_cols
 else:
     X_imp = pd.DataFrame(imp_data, columns=feat_cols)
 
-# Apply Top 15 Best Features for optimal performance (Advanced V2 features)
+# Apply Top Features for optimal performance for Gwangalli
 BEST_FEATS = [
     'precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 
-    'temp_1d_lag', 'wind_max_1d_lag', 'discharge_1d_lag', 'discharge_3d_sum_lag', 
-    'sensor_turbidity_max_1d_lag', 'sensor_salinity_min_1d_lag', 'sensor_temp_mean_1d_lag', 
-    'visitor_count_1d_lag', 'distance_from_estuary_km', 'sewage_discharge_1d_lag', 
-    'sewage_discharge_3d_sum_lag', 'CSO_Flag'
+    'temp_1d_lag', 'wind_max_1d_lag', 
+    'suyeong_vol_1d_lag', 'nambu_vol_1d_lag',
+    'distance_from_estuary_km', 'CSO_Flag_East', 'CSO_Flag_West'
 ]
 best_feats = [f for f in BEST_FEATS if f in X_imp.columns]
 if len(best_feats) > 0:
@@ -125,7 +127,7 @@ else:
 print(f"\n  [OK] Final AUC: {final_auc:.5f}")
 
 # 4. Compute Dual Thresholds
-baseline_fp = ((df.get('precipitation_mm', df.get('precip_daily', pd.Series([0]*len(df)))) >= 3.0) & (y_bin == 0)).sum()
+baseline_fp = ((df.get('precip_daily', pd.Series([0]*len(df)))) >= 30.0).sum()
 if baseline_fp == 0: baseline_fp = 10
 
 best_f2, t_yellow = 0, float(y_pred_all.min())
@@ -161,11 +163,11 @@ with open(model_path, 'wb') as f:
         't_red': t_red,
     }, f)
 
-true_entero = df['enterococcus_max'].values if 'enterococcus_max' in df.columns else df['enterococcus'].values if 'enterococcus' in df.columns else np.zeros(len(y_bin))
+true_entero = df['enterococcus_max'].values
 pred_entero = np.expm1(preds_raw_all[:, 1]) if preds_raw_all.shape[1] > 1 else np.zeros(len(y_bin))
 
 pred_df = pd.DataFrame({
-    'date': df['date'].values if 'date' in df.columns else df['examinDe'].values,
+    'date': df['date'].values,
     'y_true': y_bin, 
     'y_pred': y_pred_all,
     'pred_entero': pred_entero,

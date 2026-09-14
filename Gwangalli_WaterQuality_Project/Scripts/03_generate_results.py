@@ -15,8 +15,8 @@ plt.rcParams['axes.unicode_minus'] = False
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(BASE, 'Results')
 os.makedirs(RES, exist_ok=True)
-BEACH = 'Haeundae'
-BEACH_KOR = '해운대'
+BEACH = 'Gwangalli'
+BEACH_KOR = '광안리'
 print(f"[{BEACH}] 03_generate_results.py starting...")
 
 pred_df = pd.read_csv(os.path.join(RES, 'predictions.csv'))
@@ -64,24 +64,16 @@ plt.rcParams['axes.facecolor'] = C_BG
 # Feature Translation Dictionary (Korean)
 # ---------------------------------------------------------
 feat_kor_map = {
-    'precip_daily': '당일 강수량',
-    'temp_daily': '당일 기온',
-    'wind_max': '최대 풍속',
-    'suyeong_vol': '수영하수처리 당일 방류량',
-    'year': '연도',
-    'suyeong_cap': '수영하수처리 처리용량',
     'precip_1d_lag': '1일 전 강수량',
     'precip_2d_sum_lag': '2일 누적 강수량',
     'precip_3d_sum_lag': '3일 누적 강수량',
-    'precip_5d_sum_lag': '5일 누적 강수량',
     'temp_1d_lag': '1일 전 기온',
     'wind_max_1d_lag': '1일 전 최대 풍속',
-    'suyeong_vol_1d_lag': '수영하수처리 1일 전 방류량',
+    'suyeong_vol_1d_lag': '수영하수처리 방류량',
+    'nambu_vol_1d_lag': '남부하수처리 방류량',
     'distance_from_estuary_km': '하구로부터의 거리',
-    'CSO_Flag_Suyeong': '수영강 CSO 플래그',
-    'CSO_Flag_Rain': '강우 연동 CSO 플래그',
-    'visitor_count': '일일 방문객 수',
-    'cumulative_visitor_count': '누적 방문객 수'
+    'CSO_Flag_East': '광안리 동측 CSO 플래그',
+    'CSO_Flag_West': '광안리 서측 CSO 플래그'
 }
 
 # Feature Importance Bar Chart
@@ -277,11 +269,11 @@ plt.close()
 
 # Enterprise-level Markdown Report
 print("  Generating enterprise markdown report...")
-md_report = f"""# 🌊 해운대 해수욕장 수질 AI 예측 입수 통제 보고서
+md_report = f"""# 🌊 광안리 해수욕장 수질 AI 예측 입수 통제 보고서
 
 > [!TIP]
 > **Executive Summary**
-> 본 보고서는 해운대 해수욕장의 수질 오염(대장균/장구균 초과)을 예측하기 위한 AI 모델의 최종 성능 및 운영 기준을 요약한 기업용 엔터프라이즈 리포트입니다.
+> 본 보고서는 광안리 해수욕장의 수질 오염(대장균/장구균 초과)을 예측하기 위한 AI 모델의 최종 성능 및 운영 기준을 요약한 기업용 엔터프라이즈 리포트입니다.
 
 ## 📌 1. 최종 모델 성능 (Model Performance)
 

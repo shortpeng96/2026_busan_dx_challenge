@@ -39,10 +39,18 @@ if 'log_ecoli' not in df.columns:
     elif 'ecoli_max' in df.columns:
         df['log_ecoli'] = np.log1p(df['ecoli_max'])
 
-y_target = df['log_ecoli'] if 'log_ecoli' in df.columns else y_bin
+if 'log_entero' not in df.columns:
+    if 'enterococcus_max' in df.columns:
+        df['enterococcus_max'] = df['enterococcus_max'].fillna(df['enterococcus_max'].median())
+        df['log_entero'] = np.log1p(df['enterococcus_max'])
+    elif 'enterococcus' in df.columns:
+        df['enterococcus'] = df['enterococcus'].fillna(df['enterococcus'].median())
+        df['log_entero'] = np.log1p(df['enterococcus'])
 
-EXCLUDE = ['ecoli_max', 'ecoli', 'enterococcus_max', 'ecoli_exceed',
-           'enterococcus_exceed', 'any_exceed', 'log_ecoli', 'date',
+y_target = df[['log_ecoli', 'log_entero']] if 'log_entero' in df.columns else df[['log_ecoli']]
+
+EXCLUDE = ['ecoli_max', 'ecoli', 'enterococcus_max', 'enterococcus', 'ecoli_exceed',
+           'enterococcus_exceed', 'any_exceed', 'log_ecoli', 'log_entero', 'date',
            'examinLcDetail']
 feat_cols = [c for c in df.columns
              if c not in EXCLUDE
@@ -78,6 +86,7 @@ best_feats = list(X_imp.columns)
 print("  Training with 5-fold cross-validation...")
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 y_pred_all = np.zeros(len(y_bin))
+preds_raw_all = np.zeros((len(y_bin), 2)) if 'log_entero' in df.columns else np.zeros((len(y_bin), 1))
 
 model_params = dict(
     learning_rate=0.05, max_depth=4, n_estimators=200,
@@ -87,7 +96,22 @@ model_params = dict(
 for train_idx, test_idx in cv.split(X_imp, y_bin):
     m = XGBRegressor(**model_params)
     m.fit(X_imp.iloc[train_idx], y_target.iloc[train_idx])
-    y_pred_all[test_idx] = m.predict(X_imp.iloc[test_idx])
+    preds = m.predict(X_imp.iloc[test_idx])
+    
+    if len(preds.shape) == 1:
+        preds = preds.reshape(-1, 1)
+        
+    preds_raw_all[test_idx] = preds
+    
+    # Calculate Risk index from predictions
+    pred_ecoli = np.expm1(preds[:, 0])
+    if preds.shape[1] > 1:
+        pred_entero = np.expm1(preds[:, 1])
+        pred_risk = np.maximum(pred_ecoli / 500.0, pred_entero / 100.0)
+    else:
+        pred_risk = pred_ecoli / 500.0
+        
+    y_pred_all[test_idx] = pred_risk
 
 # Check for single class
 if len(np.unique(y_bin)) > 1:
@@ -133,6 +157,15 @@ with open(model_path, 'wb') as f:
         't_red': t_red,
     }, f)
 
-pred_df = pd.DataFrame({'y_true': y_bin, 'y_pred': y_pred_all})
+true_entero = df['enterococcus_max'].values if 'enterococcus_max' in df.columns else df['enterococcus'].values if 'enterococcus' in df.columns else np.zeros(len(y_bin))
+pred_entero = np.expm1(preds_raw_all[:, 1]) if preds_raw_all.shape[1] > 1 else np.zeros(len(y_bin))
+
+pred_df = pd.DataFrame({
+    'date': df['date'].values if 'date' in df.columns else df['examinDe'].values,
+    'y_true': y_bin, 
+    'y_pred': y_pred_all,
+    'pred_entero': pred_entero,
+    'true_entero': true_entero
+})
 pred_df.to_csv(os.path.join(RES, 'predictions.csv'), index=False)
 print(f"[{BEACH}] Modeling complete!")
