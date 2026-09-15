@@ -72,18 +72,7 @@ if imp_data.shape[1] < len(feat_cols):
 else:
     X_imp = pd.DataFrame(imp_data, columns=feat_cols)
 
-# Apply Top 15 Best Features for optimal performance (Advanced V2 features)
-BEST_FEATS = [
-    'precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 
-    'temp_1d_lag', 'wind_max_1d_lag', 'discharge_1d_lag', 'discharge_3d_sum_lag', 
-    'sensor_turbidity_max_1d_lag', 'sensor_salinity_min_1d_lag', 'sensor_temp_mean_1d_lag', 
-    'visitor_count_1d_lag', 'distance_from_estuary_km', 'sewage_discharge_1d_lag', 
-    'sewage_discharge_3d_sum_lag', 'CSO_Flag'
-]
-best_feats = [f for f in BEST_FEATS if f in X_imp.columns]
-if len(best_feats) > 0:
-    X_imp = X_imp[best_feats]
-    feat_cols = best_feats
+# Apply all valid features instead of hardcoding BEST_FEATS
 best_feats = list(X_imp.columns)
 
 # 3. Modeling

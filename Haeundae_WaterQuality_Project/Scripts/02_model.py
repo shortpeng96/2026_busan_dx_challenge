@@ -74,12 +74,7 @@ if imp_data.shape[1] < len(feat_cols):
 else:
     X_imp = pd.DataFrame(imp_data, columns=feat_cols)
 
-# Apply Top 15 Best Features for optimal performance
-BEST_FEATS = ['suyeong_vol', 'wind_max_1d_lag', 'distance_from_estuary_km']
-best_feats = [f for f in BEST_FEATS if f in X_imp.columns]
-if len(best_feats) > 0:
-    X_imp = X_imp[best_feats]
-    feat_cols = best_feats
+# Apply all valid features instead of hardcoding BEST_FEATS
 best_feats = list(X_imp.columns)
 
 # 3. Modeling

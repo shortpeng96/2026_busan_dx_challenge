@@ -75,17 +75,7 @@ if imp_data.shape[1] < len(feat_cols):
 else:
     X_imp = pd.DataFrame(imp_data, columns=feat_cols)
 
-# Apply Top Features for optimal performance for Gwangalli
-BEST_FEATS = [
-    'precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 
-    'temp_1d_lag', 'wind_max_1d_lag', 
-    'suyeong_vol_1d_lag', 'nambu_vol_1d_lag',
-    'distance_from_estuary_km', 'CSO_Flag_East', 'CSO_Flag_West'
-]
-best_feats = [f for f in BEST_FEATS if f in X_imp.columns]
-if len(best_feats) > 0:
-    X_imp = X_imp[best_feats]
-    feat_cols = best_feats
+# Apply all valid features instead of hardcoding BEST_FEATS
 best_feats = list(X_imp.columns)
 
 # 3. Modeling
