@@ -205,8 +205,20 @@ precision_y = precision_score(y_true, preds_y, zero_division=0) * 100
 precision_r = precision_score(y_true, preds_r, zero_division=0) * 100
 
 # Baseline stats (Hardcoded from previous logic: TP=23 (50% recall of 46), FP=10)
-baseline_recall = 50.0
-baseline_precision = (23 / (23 + 10)) * 100
+
+# Dynamic Baseline Calculation (Precipitation >= 30mm)
+PROC = os.path.join(BASE, 'Data_Processed')
+try:
+    df = pd.read_csv(os.path.join(PROC, 'master_dataset.csv'))
+except:
+    df = pd.read_csv(os.path.join(PROC, 'master_dataset_v2.csv'))
+
+baseline_preds = (df.get('precip_daily', pd.Series([0]*len(df))) >= 30.0).astype(int)
+baseline_tp = ((baseline_preds == 1) & (y_true == 1)).sum()
+baseline_fp_actual = ((baseline_preds == 1) & (y_true == 0)).sum()
+
+baseline_recall = (baseline_tp / max(1, y_true.sum())) * 100
+baseline_precision = (baseline_tp / max(1, (baseline_tp + baseline_fp_actual))) * 100
 
 fig, axes = plt.subplots(1, 2, figsize=(11, 5))
 
