@@ -103,3 +103,14 @@
 * **실험 결과**:
   - 하수방류량 변수가 없는 송도의 특징에 맞추어 강수량 기반 CSO(CSO_Flag_Rain) 및 거제 부이 해양 기상 피처 21종 정상 추출 확인 (총 110행 마스터 데이터 생성)
   - untracked 상태였던 Songdo_WaterQuality_Project 하위 전체 파일들을 모두 Git에 커밋 완료
+
+### 7. 송정 해수욕장 (Songjeong_WaterQuality_Project) 원본 데이터 및 전처리 파이프라인 정리
+* **상태**: 로우 데이터(Raw Data) 이관 및 01_preprocess.py 단일 스크립트화 완료 및 커밋
+* **변경 이유**: 
+  - 송정 해수욕장의 경우에도 타 해수욕장과 동일하게 Data_Raw 내에 원본 데이터를 독립적으로 구성함.
+  - water_quality_raw.csv (원본 수질 검사 결과), weather_2014_2026.csv (기상 데이터), Discharge 폴더(수영사업단 및 기장사업소 하수방류량)를 일괄 정리.
+  - 이전에 삭제되어 있던 공간 분석(spatial) 전처리 스크립트를 01_preprocess.py로 완벽하게 재구성하여 파이프라인 통일성을 확보함.
+* **실험 결과**:
+  - 해운대 기상 관측소 데이터와 2개의 인접 하수처리장(수영, 기장) 방류량 피처가 정상적으로 병합됨.
+  - 534건의 송정 전용 마스터 데이터셋 정상 생성 완료.
+  - untracked 상태였던 Songjeong_WaterQuality_Project 하위 전체 파일들을 모두 Git에 커밋 완료.
