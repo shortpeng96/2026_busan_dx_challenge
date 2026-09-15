@@ -24,16 +24,16 @@ def read_raw_csv(filename):
     return df
 
 # 1. Read all 10 files
-df_precip = read_raw_csv('강수.csv')
-df_temp = read_raw_csv('기온.csv')
-df_wind = read_raw_csv('바람.csv')
-df_uv = read_raw_csv('자외선.csv')
-df_sewage = read_raw_csv('인근_하수_방류량.csv')
-df_river = read_raw_csv('인근_하천_방류량.csv')
-df_visitor = read_raw_csv('방문객.csv')
-df_tide = read_raw_csv('조수.csv')
-df_water = read_raw_csv('수질.csv')
-df_temp_water = read_raw_csv('수온.csv')
+df_precip = read_raw_csv('광안리_강수.csv')
+df_temp = read_raw_csv('광안리_기온.csv')
+df_wind = read_raw_csv('광안리_바람.csv')
+df_uv = read_raw_csv('광안리_자외선.csv')
+df_sewage = read_raw_csv('광안리_인근_하수_방류량.csv')
+df_river = read_raw_csv('광안리_인근_하천_방류량.csv')
+df_visitor = read_raw_csv('광안리_방문객.csv')
+df_tide = read_raw_csv('광안리_조수.csv')
+df_water = read_raw_csv('광안리_수질.csv')
+df_temp_water = read_raw_csv('광안리_수온.csv')
 
 # 2. Base Date Frame (Use Water Quality as the base target)
 if df_water.empty:
