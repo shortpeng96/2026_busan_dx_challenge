@@ -124,3 +124,11 @@
 * **실험 결과**:
   - 기존과 동일하게 V2 모델에 필요한 모든 고급 피처(CSO_Flag, 방류량 누적 등)가 포함된 260행 마스터 데이터셋이 Data_Raw 파일들만으로 정상 재현됨.
   - 불필요하게 중복되어 있던 파일(busan_beach_다대포.csv 복사본, dadaepo_discharge_daily.csv 등)을 정리하여 무결성을 확보함.
+
+### 9. 송도 해수욕장 (Songdo_WaterQuality_Project) 결과 도출 양식 통일
+* **상태**: 02_model.py 재검증 및 03_generate_results.py 리팩토링 완료
+* **변경 이유**: 
+  - 송도의 데이터 분석 과정을 최신화하고, 산출되는 결과물들을 광안리 해수욕장과 동일한 엔터프라이즈 리포트 양식(Markdown, KDE 등)으로 통일함.
+* **실험 결과**:
+  - 02_model.py를 실행하여 최신 성능 지표 도출.
+  - 03_generate_results.py를 통해 feature_importance, dual_warning_kde, roi_comparison 등의 시각화 차트 및 analysis_report_Songdo.md 가 성공적으로 생성됨.
