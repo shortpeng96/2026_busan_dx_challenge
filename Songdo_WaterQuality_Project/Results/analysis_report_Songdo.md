@@ -49,5 +49,8 @@ AI 모델은 오염 피해를 선제적으로 차단하기 위해 2단계의 경
 ### 3.5 오탐(FP) 방어 비교 분석
 ![오탐 비교](./roi_comparison_Songdo.png)
 
+### 3.6 실제 수질 vs AI 예측 트렌드 (시계열)
+![시계열 트렌드](./timeseries_lineplot_Songdo.png)
+
 ---
 *보고서 생성일: 시스템 자동 생성*

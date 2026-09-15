@@ -245,6 +245,48 @@ plt.tight_layout()
 plt.savefig(os.path.join(RES, f'roi_comparison_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
 
+# Time Series Line Plot
+print("  Generating Time Series Line Plot...")
+df_plot = pred_df.copy()
+# Note: Since pred_df might not have 'date' yet, we pull it from master_dataset
+master_df = pd.read_csv(os.path.join(PROC, 'master_dataset.csv'))
+master_df['date'] = pd.to_datetime(master_df['date'])
+df_plot['date'] = master_df['date'].values
+
+# Reconstruct predictions. 
+# y_target in Songdo is log_ecoli, so we invert it with expm1
+df_plot['pred_entero'] = np.expm1(df_plot['y_pred'])
+df_plot['true_entero'] = master_df['ecoli_max'].values
+
+year_counts = df_plot['date'].dt.year.value_counts()
+best_year = year_counts.idxmax()
+df_year = df_plot[df_plot['date'].dt.year == best_year]
+
+df_melt = df_year.melt(id_vars=['date'], value_vars=['true_entero', 'pred_entero'], 
+                       var_name='Type', value_name='Concentration')
+df_melt['Type'] = df_melt['Type'].map({'true_entero': '실제 수치 (Actual)', 'pred_entero': 'AI 예측 (Predicted)'})
+
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.lineplot(data=df_melt, x='date', y='Concentration', hue='Type', 
+             linewidth=2.5, palette=[C_TEXT, C_ORANGE], ax=ax)
+
+ax.set_title(f'{BEACH_KOR} 해수욕장 - 실제 수질 vs AI 예측 트렌드 ({best_year}년)', color=C_NAVY, weight='bold', fontsize=16)
+ax.set_xlabel('측정 일자 (Date)', weight='bold', fontsize=12)
+ax.set_ylabel('대장균 농도 (E.coli)', weight='bold', fontsize=12)
+
+import matplotlib.dates as mdates
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%m월 %d일'))
+plt.xticks(rotation=45)
+ax.xaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
+ax.yaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.legend(loc='upper right', frameon=True)
+
+plt.tight_layout()
+plt.savefig(os.path.join(RES, f'timeseries_lineplot_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
+plt.close()
+
 # Enterprise-level Markdown Report
 print("  Generating enterprise markdown report...")
 md_report = f"""# 🌊 {BEACH_KOR} 해수욕장 수질 AI 예측 입수 통제 보고서
@@ -297,6 +339,9 @@ AI 모델은 오염 피해를 선제적으로 차단하기 위해 2단계의 경
 
 ### 3.5 오탐(FP) 방어 비교 분석
 ![오탐 비교](./roi_comparison_{BEACH}.png)
+
+### 3.6 실제 수질 vs AI 예측 트렌드 (시계열)
+![시계열 트렌드](./timeseries_lineplot_{BEACH}.png)
 
 ---
 *보고서 생성일: 시스템 자동 생성*
