@@ -33,7 +33,7 @@ df_river = read_raw_csv('일광_인근_하천_방류량.csv')
 df_visitor = read_raw_csv('일광_방문객.csv')
 df_tide = read_raw_csv('일광_조수.csv')
 df_water = read_raw_csv('일광_수질.csv')
-df_temp_water = read_raw_csv('일광_수온.csv')
+df_temp_water = read_raw_csv('일광_부이데이터.csv')
 
 # 2. Base Date Frame (Use Water Quality as the base target)
 if df_water.empty:
