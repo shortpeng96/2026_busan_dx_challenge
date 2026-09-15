@@ -114,3 +114,13 @@
   - 해운대 기상 관측소 데이터와 2개의 인접 하수처리장(수영, 기장) 방류량 피처가 정상적으로 병합됨.
   - 534건의 송정 전용 마스터 데이터셋 정상 생성 완료.
   - untracked 상태였던 Songjeong_WaterQuality_Project 하위 전체 파일들을 모두 Git에 커밋 완료.
+
+### 8. 다대포 해수욕장 (Dadaepo_WaterQuality_Project) 전처리 파이프라인 단일화
+* **상태**: 로우 데이터(Raw Data) 이관 및 01_preprocess.py 자립형(Self-contained) 구조화 완료
+* **변경 이유**: 
+  - 다대포의 기존 01_preprocess.py는 외부 C:\Sandbox\Preprocessed 폴더에 강하게 의존하고 있어, 타 프로젝트(해운대, 송정 등)와 같은 자립형 파이프라인 표준에 어긋남.
+  - 사용자가 요청한 누락 원본 데이터(낙동강 하굿둑 총방류량 원본, 강변사업소 방류량, 조위 관측 데이터 전체)를 Dadaepo_WaterQuality_Project/Data_Raw 에 완벽히 이관함.
+  - 01_preprocess.py 스크립트 내부에서 방류량과 조위 데이터를 즉석(On-the-fly)에서 정제하고 병합하도록 코드를 리팩토링함.
+* **실험 결과**:
+  - 기존과 동일하게 V2 모델에 필요한 모든 고급 피처(CSO_Flag, 방류량 누적 등)가 포함된 260행 마스터 데이터셋이 Data_Raw 파일들만으로 정상 재현됨.
+  - 불필요하게 중복되어 있던 파일(busan_beach_다대포.csv 복사본, dadaepo_discharge_daily.csv 등)을 정리하여 무결성을 확보함.
