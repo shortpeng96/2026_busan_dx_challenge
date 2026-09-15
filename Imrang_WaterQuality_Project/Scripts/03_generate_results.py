@@ -234,7 +234,11 @@ axes[0].set_ylabel('재현율 (%)', weight='bold')
 
 text_colors_recall = ['white', C_TEXT]
 for bar, r, tc in zip(bars1, recalls, text_colors_recall):
-    axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() - 3, f'{r:.1f}%', ha='center', va='top', fontsize=14, color=tc, weight='bold')
+    h = bar.get_height()
+    if h < 5:
+        axes[0].text(bar.get_x() + bar.get_width()/2, h + 2, f'{r:.1f}%', ha='center', va='bottom', fontsize=14, color=C_TEXT, weight='bold')
+    else:
+        axes[0].text(bar.get_x() + bar.get_width()/2, h - 3, f'{r:.1f}%', ha='center', va='top', fontsize=14, color=tc, weight='bold')
 
 # Plot 2: Precision Comparison (Baseline vs Danger)
 scenarios_precision = ['기존 강수량 기준\n(30mm 초과)', 'AI 2단계\n(입수 통제)']
@@ -248,7 +252,11 @@ axes[1].set_ylabel('정밀도 (%)', weight='bold')
 
 text_colors_precision = ['white', C_TEXT]
 for bar, p, tc in zip(bars2, precisions, text_colors_precision):
-    axes[1].text(bar.get_x() + bar.get_width()/2, bar.get_height() - 3, f'{p:.1f}%', ha='center', va='top', fontsize=14, color=tc, weight='bold')
+    h = bar.get_height()
+    if h < 5:
+        axes[1].text(bar.get_x() + bar.get_width()/2, h + 2, f'{p:.1f}%', ha='center', va='bottom', fontsize=14, color=C_TEXT, weight='bold')
+    else:
+        axes[1].text(bar.get_x() + bar.get_width()/2, h - 3, f'{p:.1f}%', ha='center', va='top', fontsize=14, color=tc, weight='bold')
 
 plt.suptitle(f'임랑 해수욕장 - AI 도입 효과 (ROI) 시각화', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
