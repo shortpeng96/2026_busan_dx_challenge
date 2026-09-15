@@ -16,6 +16,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(BASE, 'Results')
 os.makedirs(RES, exist_ok=True)
 BEACH = 'Songjeong'
+BEACH_KOR = '송정'
 print(f"[{BEACH}] 03_generate_results.py starting...")
 
 pred_df = pd.read_csv(os.path.join(RES, 'predictions.csv'))
@@ -37,90 +38,339 @@ recall_y = recall_score(y_true, preds_y, zero_division=0) * 100
 recall_r = recall_score(y_true, preds_r, zero_division=0) * 100
 fp_yellow = ((preds_y == 1) & (y_true == 0)).sum()
 fp_red = ((preds_r == 1) & (y_true == 0)).sum()
-baseline_fp = 10 
 
-# Feature Importance
+# Load df to calculate baseline_fp properly
+PROC = os.path.join(BASE, 'Data_Processed')
+df = pd.read_csv(os.path.join(PROC, 'master_dataset.csv'))
+baseline_fp = ((df.get('precip_daily', pd.Series([0]*len(df)))) >= 30.0).sum()
+if baseline_fp == 0: baseline_fp = 15
+
+# Theme Colors
+C_NAVY = '#0F2537'
+C_BLUE = '#1D70B8'
+C_ORANGE = '#FF6B35'
+C_BG = '#F4F7F6'
+C_TEXT = '#2D3748'
+C_WARN = '#FFC107'
+
+plt.rcParams['text.color'] = C_TEXT
+plt.rcParams['axes.labelcolor'] = C_TEXT
+plt.rcParams['xtick.color'] = C_TEXT
+plt.rcParams['ytick.color'] = C_TEXT
+plt.rcParams['figure.facecolor'] = C_BG
+plt.rcParams['axes.facecolor'] = C_BG
+
+# ---------------------------------------------------------
+# Feature Translation Dictionary (Korean)
+# ---------------------------------------------------------
+feat_kor_map = {
+    'precip_1d_lag': '1일 전 강수량',
+    'precip_2d_sum_lag': '2일 누적 강수량',
+    'precip_3d_sum_lag': '3일 누적 강수량',
+    'temp_1d_lag': '1일 전 기온',
+    'wind_max_1d_lag': '1일 전 최대 풍속',
+    'suyeong_vol_1d_lag': '수영하수처리 방류량',
+    'nambu_vol_1d_lag': '남부하수처리 방류량',
+    'distance_from_estuary_km': '하구로부터의 거리',
+    'CSO_Flag_East': '송정 동측 CSO 플래그',
+    'CSO_Flag_West': '송정 서측 CSO 플래그'
+}
+
+# Feature Importance Bar Chart
 print("  Generating feature importance...")
 fig, ax = plt.subplots(figsize=(10, 6))
 importances = model.feature_importances_
 feat_imp = pd.Series(importances, index=features).sort_values(ascending=False).head(15).sort_values(ascending=True)
-feat_imp.plot(kind='barh', ax=ax, color='steelblue')
-ax.set_title(f'{BEACH} 해수욕장 - 수질 예측 핵심 변수 중요도 (Top 15)')
+
+# Translate index to Korean
+feat_imp.index = feat_imp.index.map(lambda x: feat_kor_map.get(x, x))
+
+import matplotlib
+# Apply a smooth gradient based on importance rank (from light blue to deep navy)
+cmap = matplotlib.colormaps['Blues']
+colors_bar = [cmap(0.4 + 0.55 * (i / max(1, len(feat_imp)-1))) for i in range(len(feat_imp))]
+feat_imp.plot(kind='barh', ax=ax, color=colors_bar, width=0.75, edgecolor='none')
+ax.set_title(f'송정 해수욕장 - 수질 예측 핵심 변수 중요도', color=C_NAVY, weight='bold', fontsize=16)
+
+for i, v in enumerate(feat_imp.values):
+    ax.text(v + (max(feat_imp.values) * 0.01), i, f'{v:.3f}', va='center', color=C_NAVY, fontsize=11, weight='bold')
+
+ax.xaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
 plt.tight_layout()
-plt.savefig(os.path.join(RES, f'feature_importance_{BEACH}.png'), dpi=150)
+plt.savefig(os.path.join(RES, f'feature_importance_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
+plt.close()
+
+# Categorized Donut Chart
+print("  Generating feature importance donut chart...")
+category_map = {
+    '기상 요인': ['precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'precip_5d_sum_lag', 'temp_1d_lag', 'temp_daily', 'wind_speed_1d_lag', 'wind_dir_1d_lag', 'wind_max_1d_lag', 'storm_intensity', 'wind_x_distance', 'cso_x_distance', 'month'],
+    '해양기상(부이) 요인': ['meis_max_wave_3d_mean', 'meis_max_wave_7d_mean', 'meis_wind_speed_7d_mean', 'meis_water_temp_7d_mean'],
+    '하수처리 요인': ['suyeong_vol_1d_lag', 'nambu_vol_1d_lag', 'CSO_Flag_East', 'CSO_Flag_West'],
+    '지리적 요인': ['distance_from_estuary_km', 'distance_to_outfall']
+}
+cat_importances = {'기상 요인': 0, '해양기상(부이) 요인': 0, '하수처리 요인': 0, '지리적 요인': 0}
+for feat, imp in zip(features, importances):
+    found = False
+    for cat, feats in category_map.items():
+        if feat in feats:
+            cat_importances[cat] += imp
+            found = True
+            break
+    if not found:
+        cat_importances['기상 요인'] += imp
+
+cat_series = pd.Series(cat_importances)
+cat_series = cat_series[cat_series > 0].sort_values(ascending=False)
+
+fig, ax = plt.subplots(figsize=(9, 7))
+colors_donut = [C_NAVY, C_BLUE, C_ORANGE, '#6c757d', '#adb5bd']
+
+print('cat_series before pie:')
+print(cat_series)
+print('cat_series.values:', cat_series.values)
+
+wedges, texts, autotexts = ax.pie(cat_series, labels=None, autopct='%1.1f%%', pctdistance=0.75,
+                                  startangle=90, colors=colors_donut, wedgeprops=dict(width=0.4, edgecolor='w'))
+
+for autotext in autotexts:
+    autotext.set_color('white')
+    autotext.set_fontsize(14)
+    autotext.set_weight('bold')
+
+ax.text(0, 0, f'AUC\n{final_auc:.3f}', ha='center', va='center', fontsize=22, weight='bold', color=C_NAVY)
+ax.legend(wedges, cat_series.index, title="원인 카테고리", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
+ax.set_title(f'송정 해수욕장 - 카테고리별 오염 기여도', color=C_NAVY, weight='bold', fontsize=16)
+plt.tight_layout()
+plt.savefig(os.path.join(RES, f'feature_importance_donut_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
 
 # Confusion Matrix
 print("  Generating confusion matrix...")
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 for ax, (threshold, label, color) in zip(axes, [
-    (t_yellow, f'🟡 주의 단계 (t={t_yellow:.3f})', '#FFC107'),
-    (t_red, f'🔴 위험 단계 (t={t_red:.3f})', '#DC3545'),
+    (t_yellow, f'주의 단계 (기준 점수: {t_yellow:.3f})', C_WARN),
+    (t_red, f'위험 단계 (기준 점수: {t_red:.3f})', C_ORANGE),
 ]):
     preds = (y_pred >= threshold).astype(int)
     cm = confusion_matrix(y_true, preds)
     sns.heatmap(cm, annot=True, fmt='d', ax=ax, cmap=sns.light_palette(color, as_cmap=True), xticklabels=['정상', '오염'], yticklabels=['정상', '오염'])
-    ax.set_title(label, fontsize=11)
-    ax.set_xlabel('예측값')
-    ax.set_ylabel('실제값')
+    ax.set_title(label, fontsize=13, color=C_NAVY, weight='bold')
+    ax.set_xlabel('AI 모델이 내린 판정 (예측값)', weight='bold')
+    ax.set_ylabel('바다의 실제 상태 (실제값)', weight='bold')
 
-plt.suptitle(f'{BEACH} 해수욕장 이중 임계값 혼동행렬 (AUC={final_auc:.3f})')
+plt.suptitle(f'송정 해수욕장 이중 기준선 혼동행렬 (Confusion Matrix)', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
-plt.savefig(os.path.join(RES, f'confusion_matrix_{BEACH}.png'), dpi=150)
+plt.savefig(os.path.join(RES, f'confusion_matrix_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
 
-# KDE
+# KDE (Score Distribution)
 print("  Generating KDE plot...")
 fig, ax = plt.subplots(figsize=(10, 6))
 y_pred_arr = np.array(y_pred)
-if len(y_pred_arr[y_true == 0]) > 0:
-    ax.hist(y_pred_arr[y_true == 0], bins=30, alpha=0.6, color='steelblue', label='정상 (No Exceed)', density=True)
-if len(y_pred_arr[y_true == 1]) > 0:
-    ax.hist(y_pred_arr[y_true == 1], bins=30, alpha=0.6, color='tomato', label='오염 초과 (Exceed)', density=True)
-ax.axvline(t_yellow, color='#FFC107', linestyle='--', lw=2, label=f'🟡 주의 ({t_yellow:.3f})')
-ax.axvline(t_red, color='#DC3545', linestyle='--', lw=2, label=f'🔴 위험 ({t_red:.3f})')
-ax.set_title(f'{BEACH} 해수욕장 - 오염 예측 점수 분포 (AUC={final_auc:.3f})')
-ax.legend()
+y_true_arr = np.array(y_true)
+
+epsilon = 1e-5
+if len(y_pred_arr[y_true_arr == 0]) > 0:
+    sns.kdeplot(y_pred_arr[y_true_arr == 0] + epsilon, ax=ax, color=C_BLUE, fill=True, alpha=0.5, label='정상 수질을 기록한 날의 AI 예측 점수', linewidth=2, log_scale=True)
+if len(y_pred_arr[y_true_arr == 1]) > 0:
+    sns.kdeplot(y_pred_arr[y_true_arr == 1] + epsilon, ax=ax, color=C_ORANGE, fill=True, alpha=0.5, label='실제 오염이 발생했던 날의 AI 예측 점수', linewidth=2, log_scale=True)
+
+ax.axvline(t_yellow + epsilon, color=C_WARN, linestyle='--', lw=2.5, label=f'1단계: 경고 알림 발송 기준선 (점수: {t_yellow:.3f})')
+ax.axvline(t_red + epsilon, color=C_ORANGE, linestyle=':', lw=2.5, label=f'2단계: 해수욕장 입수 통제 기준선 (점수: {t_red:.3f})')
+
+ax.set_title(f'송정 해수욕장 - 정상/오염 데이터별 예측 점수 분포도 (Log Scale)', color=C_NAVY, weight='bold', fontsize=16)
+ax.set_xlabel('AI가 예측한 오염 위험도 점수 (로그 스케일, 점수가 높을수록 오염 확률 높음)', fontsize=12, color=C_TEXT, weight='bold', labelpad=10)
+ax.set_ylabel('데이터 밀도 (해당 점수대에 분포한 데이터의 양)', fontsize=12, color=C_TEXT, weight='bold', labelpad=10)
+
+from matplotlib.ticker import ScalarFormatter
+ax.xaxis.set_major_formatter(ScalarFormatter())
+ax.set_xlim(0.01, max(y_pred_arr.max() * 1.5, 100))
+
+ax.legend(fontsize=10, loc='upper right', frameon=True, shadow=True)
+
 plt.tight_layout()
-plt.savefig(os.path.join(RES, f'dual_warning_kde_{BEACH}.png'), dpi=150)
+plt.savefig(os.path.join(RES, f'dual_warning_kde_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
 
 # ROI Comparison Plot
 print("  Generating ROI comparison...")
-fig, ax = plt.subplots(figsize=(8, 5))
-scenarios = ['기존 강수 기준\n(베이스라인)', '🟡 주의 단계\n(재현율 최적)', '🔴 위험 단계\n(정밀도 최적)']
-false_pos = [baseline_fp, fp_yellow, fp_red]
-recalls = [50, recall_y, recall_r]
-colors = ['#6c757d', '#FFC107', '#DC3545']
+from sklearn.metrics import precision_score
+precision_y = precision_score(y_true, preds_y, zero_division=0) * 100
+precision_r = precision_score(y_true, preds_r, zero_division=0) * 100
 
-bars = ax.bar(scenarios, false_pos, color=colors, alpha=0.8, edgecolor='black')
-for bar, r in zip(bars, recalls):
-    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.3, f'재현율\n{r:.0f}%', ha='center', va='bottom', fontsize=9)
-ax.set_title(f'{BEACH} 해수욕장 - 오탐(FP) 비교')
+# Dynamic Baseline Calculation (Precipitation >= 30mm)
+PROC = os.path.join(BASE, 'Data_Processed')
+try:
+    df = pd.read_csv(os.path.join(PROC, 'master_dataset.csv'))
+except:
+    df = pd.read_csv(os.path.join(PROC, 'master_dataset_v2.csv'))
+
+baseline_preds = (df.get('precip_daily', pd.Series([0]*len(df))) >= 30.0).astype(int)
+baseline_tp = ((baseline_preds == 1) & (y_true == 1)).sum()
+baseline_fp_actual = ((baseline_preds == 1) & (y_true == 0)).sum()
+
+baseline_recall = (baseline_tp / max(1, y_true.sum())) * 100
+baseline_precision = (baseline_tp / max(1, (baseline_tp + baseline_fp_actual))) * 100
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+
+scenarios_recall = ['기존 강수량 기준\n(30mm 초과)', 'AI 1단계\n(주의 알림)']
+recalls = [baseline_recall, recall_y]
+colors_recall = ['#6c757d', C_WARN]
+
+bars1 = axes[0].bar(scenarios_recall, recalls, color=colors_recall, alpha=0.9, edgecolor='none', width=0.6)
+axes[0].set_ylim(0, 100)
+axes[0].set_title('1단계 목표: 재현율 (사고 예방력) 비교', color=C_NAVY, weight='bold', fontsize=13)
+axes[0].set_ylabel('재현율 (%)', weight='bold')
+
+text_colors_recall = ['white', C_TEXT]
+for bar, r, tc in zip(bars1, recalls, text_colors_recall):
+    h = bar.get_height()
+    if h < 5:
+        axes[0].text(bar.get_x() + bar.get_width()/2, h + 2, f'{r:.1f}%', ha='center', va='bottom', fontsize=14, color=C_TEXT, weight='bold')
+    else:
+        axes[0].text(bar.get_x() + bar.get_width()/2, h - 3, f'{r:.1f}%', ha='center', va='top', fontsize=14, color=tc, weight='bold')
+
+scenarios_precision = ['기존 강수량 기준\n(30mm 초과)', 'AI 2단계\n(입수 통제)']
+precisions = [baseline_precision, precision_r]
+colors_precision = ['#6c757d', C_ORANGE]
+
+bars2 = axes[1].bar(scenarios_precision, precisions, color=colors_precision, alpha=0.85, edgecolor='none', width=0.6)
+axes[1].set_ylim(0, 110)
+axes[1].set_title('2단계 목표: 정밀도 (오탐 방지력) 비교', color=C_NAVY, weight='bold', fontsize=13)
+axes[1].set_ylabel('정밀도 (%)', weight='bold')
+
+text_colors_precision = ['white', C_TEXT]
+for bar, p, tc in zip(bars2, precisions, text_colors_precision):
+    h = bar.get_height()
+    if h < 5:
+        axes[1].text(bar.get_x() + bar.get_width()/2, h + 2, f'{p:.1f}%', ha='center', va='bottom', fontsize=14, color=C_TEXT, weight='bold')
+    else:
+        axes[1].text(bar.get_x() + bar.get_width()/2, h - 3, f'{p:.1f}%', ha='center', va='top', fontsize=14, color=tc, weight='bold')
+
+plt.suptitle(f'송정 해수욕장 - AI 도입 효과 (ROI) 시각화', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
-plt.savefig(os.path.join(RES, f'roi_comparison_{BEACH}.png'), dpi=150)
+plt.savefig(os.path.join(RES, f'roi_comparison_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
 
-# Text Report
-print("  Generating text report...")
-report = f"""# 🌊 {BEACH} 해수욕장 수질 AI 예측 입수 통제 보고서
+# Time Series Line Plot
+print("  Generating Time Series Line Plot...")
+df_plot = pred_df.copy()
+# Note: Since pred_df might not have 'date' yet, we pull it from master_dataset
+master_df = pd.read_csv(os.path.join(PROC, 'master_dataset.csv'))
+master_df['date'] = pd.to_datetime(master_df['date'])
+df_plot['date'] = master_df['date'].values
 
-## 📌 최종 모델 성능
+# Reconstruct predictions. 
+# y_target in Songjeong might be log_ecoli, or binary. Check master dataset for 'ecoli' or 'ecoli_max'
+if 'ecoli' in master_df.columns:
+    df_plot['pred_entero'] = np.expm1(df_plot['y_pred']) if df_plot['y_pred'].max() < 100 else df_plot['y_pred']
+    df_plot['true_entero'] = master_df['ecoli'].values
+elif 'ecoli_max' in master_df.columns:
+    df_plot['pred_entero'] = np.expm1(df_plot['y_pred']) if df_plot['y_pred'].max() < 100 else df_plot['y_pred']
+    df_plot['true_entero'] = master_df['ecoli_max'].values
+else:
+    df_plot['pred_entero'] = df_plot['y_pred']
+    df_plot['true_entero'] = y_true
 
-* **ROC-AUC**: **{final_auc:.3f}** (5-fold CV, XGBoost Regressor)
-* **학습 데이터**: {len(y_true)}건 수질 검사 기록 (대장균 기준 초과: {int(y_true.sum())}건)
+year_counts = df_plot['date'].dt.year.value_counts()
+best_year = year_counts.idxmax()
+df_year = df_plot[df_plot['date'].dt.year == best_year]
 
-## 🎯 이중 임계값 시스템
+df_melt = df_year.melt(id_vars=['date'], value_vars=['true_entero', 'pred_entero'], 
+                       var_name='Type', value_name='Concentration')
+df_melt['Type'] = df_melt['Type'].map({'true_entero': '실제 수치 (Actual)', 'pred_entero': 'AI 예측 (Predicted)'})
 
-* 🟡 **주의 단계 (임계값 {t_yellow:.3f})**
-  * 재현율(Recall): {recall_y:.1f}% - 오염 사태 {int(recall_y/100 * y_true.sum())}/{int(y_true.sum())}건 선제 탐지
-  * 오탐(FP): {fp_yellow}건
+fig, ax = plt.subplots(figsize=(12, 6))
 
-* 🔴 **위험 단계 (임계값 {t_red:.3f})**
-  * 재현율(Recall): {recall_r:.1f}% - 오염 사태 {int(recall_r/100 * y_true.sum())}/{int(y_true.sum())}건 탐지
-  * 오탐(FP): {fp_red}건
+sns.lineplot(data=df_melt, x='date', y='Concentration', hue='Type', 
+             linewidth=2.5, palette=[C_TEXT, C_ORANGE], errorbar='ci', ax=ax)
+
+ax.set_title(f'{BEACH_KOR} 해수욕장 - 실제 수질 vs AI 예측 트렌드 ({best_year}년)', color=C_NAVY, weight='bold', fontsize=16)
+ax.set_xlabel('측정 일자 (Date)', weight='bold', fontsize=12)
+ax.set_ylabel('대장균 농도 (E.coli)', weight='bold', fontsize=12)
+
+import matplotlib.dates as mdates
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%m월 %d일'))
+plt.xticks(rotation=45)
+
+ax.xaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
+ax.yaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.legend(loc='upper right', frameon=True)
+
+plt.tight_layout()
+plt.savefig(os.path.join(RES, f'timeseries_lineplot_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
+plt.close()
+
+# Enterprise-level Markdown Report
+print("  Generating enterprise markdown report...")
+md_report = f"""# 🌊 송정 해수욕장 수질 AI 예측 입수 통제 보고서
+
+> [!TIP]
+> **Executive Summary**
+> 본 보고서는 송정 해수욕장의 수질 오염(대장균/장구균 초과)을 예측하기 위한 AI 모델의 최종 성능 및 운영 기준을 요약한 기업용 엔터프라이즈 리포트입니다.
+
+## 📌 1. 최종 모델 성능 (Model Performance)
+
+| 지표 (Metrics) | 결과 (Result) | 비고 (Note) |
+| :--- | :--- | :--- |
+| **ROC-AUC** | **{final_auc:.3f}** | 5-fold CV, XGBoost Regressor |
+| **학습 데이터** | **{len(y_true)}건** | 수질 검사 기록 총량 |
+| **오염 발생 빈도** | **{int(y_true.sum())}건** | 대장균/장구균 기준치 초과 사례 |
+
+---
+
+## 🎯 2. 이중 기준선 운영 시스템 (Dual-Threshold System)
+
+AI 모델은 오염 피해를 선제적으로 차단하기 위해 2단계의 경보 시스템을 가동합니다.
+
+> [!WARNING]
+> ### 🟡 1단계: 주의 알림 (기준 점수: {t_yellow:.3f})
+> * **목적**: 관리자에게 선제적 경고 알림 발송
+> * **재현율 (Recall)**: **{recall_y:.1f}%** (오염 사태 {int(recall_y/100 * y_true.sum())}/{int(y_true.sum())}건 선제 탐지)
+> * **오탐 (False Positive)**: {fp_yellow}건
+
+> [!CAUTION]
+> ### 🔴 2단계: 입수 통제 (기준 점수: {t_red:.3f})
+> * **목적**: 해수욕장 입수 전면 통제 및 안내 방송
+> * **재현율 (Recall)**: **{recall_r:.1f}%** (치명적 오염 사태 {int(recall_r/100 * y_true.sum())}/{int(y_true.sum())}건 탐지)
+> * **오탐 (False Positive)**: {fp_red}건 (과잉 통제 최소화)
+
+---
+
+## 📊 3. 시각화 분석 (Data Visualization)
+
+### 3.1 카테고리별 오염 기여도 분석
+![카테고리별 오염 기여도](./feature_importance_donut_{BEACH}.png)
+
+### 3.2 핵심 변수 세부 중요도
+![세부 중요도](./feature_importance_{BEACH}.png)
+
+### 3.3 정상/오염 예측 점수 분포도 (Log Scale)
+![점수 분포도](./dual_warning_kde_{BEACH}.png)
+
+### 3.4 이중 기준선 혼동 행렬 (Confusion Matrix)
+![혼동 행렬](./confusion_matrix_{BEACH}.png)
+
+### 3.5 오탐(FP) 방어 비교 분석
+![오탐 비교](./roi_comparison_{BEACH}.png)
+
+### 3.6 실제 수질 vs AI 예측 트렌드 (시계열)
+![시계열 트렌드](./timeseries_lineplot_{BEACH}.png)
+
+---
+*보고서 생성일: 시스템 자동 생성*
 """
-with open(os.path.join(RES, f'results_{BEACH}.txt'), 'w', encoding='utf-8') as f:
-    f.write(report)
+with open(os.path.join(RES, f'results_{BEACH}.md'), 'w', encoding='utf-8') as f:
+    f.write(md_report)
+
+old_txt = os.path.join(RES, f'results_{BEACH}.txt')
+if os.path.exists(old_txt):
+    os.remove(old_txt)
 
 print(f"[{BEACH}] All results generated!")
