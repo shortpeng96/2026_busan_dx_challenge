@@ -108,6 +108,10 @@ if 'wind_max' in feature_table.columns:
 if 'solar_radiation_sum' in feature_table.columns:
     feature_table['solar_radiation_1d_lag'] = feature_table['solar_radiation_sum'].shift(1)
 
+if 'tide_max' in feature_table.columns and 'tide_min' in feature_table.columns:
+    feature_table['tide_range'] = feature_table['tide_max'] - feature_table['tide_min']
+    feature_table['tide_range_1d_lag'] = feature_table['tide_range'].shift(1)
+
 if 'suyeong_vol' in feature_table.columns:
     feature_table['suyeong_vol_1d_lag'] = feature_table['suyeong_vol'].shift(1)
     suyeong_cap = feature_table.groupby('year')['suyeong_vol'].transform(lambda x: np.percentile(x.dropna(), 95) if len(x.dropna())>0 else np.nan)
