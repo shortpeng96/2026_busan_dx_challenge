@@ -50,10 +50,7 @@ for buoy in ['송정_부이데이터.csv', '감천항_부이데이터.csv', '부
 # 1. Dadaepo: Gamcheon + Busan New Port
 if dfs['감천항'] is not None and dfs['부산신항'] is not None:
     df_dadaepo = pd.merge(dfs['감천항'], dfs['부산신항'], on='date', how='outer')
-    if '감천항_수온(℃)' in df_dadaepo.columns and '부산신항_수온(℃)' in df_dadaepo.columns:
-        df_dadaepo['sensor_temp_mean'] = df_dadaepo[['감천항_수온(℃)', '부산신항_수온(℃)']].mean(axis=1)
-    if '감천항_염분(PSU)' in df_dadaepo.columns and '부산신항_염분(PSU)' in df_dadaepo.columns:
-        df_dadaepo['sensor_salinity_mean'] = df_dadaepo[['감천항_염분(PSU)', '부산신항_염분(PSU)']].mean(axis=1)
+    # 분리 적용: 평균(Mean) 파생 변수 생성을 제거하고, 각 항구별 원본 컬럼을 그대로 유지합니다.
     out_dir = os.path.join(BASE, 'Dadaepo_WaterQuality_Project', 'Data_Raw')
     os.makedirs(out_dir, exist_ok=True)
     df_dadaepo.to_csv(os.path.join(out_dir, '다대포_부이데이터.csv'), index=False)
@@ -62,8 +59,7 @@ if dfs['감천항'] is not None and dfs['부산신항'] is not None:
 # 2. Songdo: Gamcheon + Busan Port
 if dfs['감천항'] is not None and dfs['부산항'] is not None:
     df_songdo = pd.merge(dfs['감천항'], dfs['부산항'], on='date', how='outer')
-    if '감천항_수온(℃)' in df_songdo.columns and '부산항_수온(℃)' in df_songdo.columns:
-        df_songdo['sensor_temp_mean'] = df_songdo[['감천항_수온(℃)', '부산항_수온(℃)']].mean(axis=1)
+    # 분리 적용: 평균(Mean) 파생 변수 생성을 제거하고, 각 항구별 원본 컬럼을 그대로 유지합니다.
     out_dir = os.path.join(BASE, 'Songdo_WaterQuality_Project', 'Data_Raw')
     os.makedirs(out_dir, exist_ok=True)
     df_songdo.to_csv(os.path.join(out_dir, '송도_부이데이터.csv'), index=False)
