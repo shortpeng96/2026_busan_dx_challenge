@@ -1,51 +1,32 @@
-# 🌊 Songdo 해수욕장 수질 AI 예측 입수 통제 보고서 (Hyper-Tuned Classifier)
+# 🌊 Songdo 해수욕장 수질 AI 예측 입수 통제 보고서
 
-본 보고서는 Songdo의 수질 예측 모델을 극한으로 하이퍼튜닝(Hyper-Tuning)하고, 이중 목적 함수(Dual-Objective)를 적용하여 완전히 투명하고 자연스러운 2단계 시스템을 구축한 결과입니다.
+## 📌 최종 모델 성능
 
----
+* **ROC-AUC**: **0.912** (5-fold CV, XGBoost Regressor)
+* **학습 데이터**: 319건 수질 검사 기록 (대장균 기준 초과: 13건)
+* **핵심 피처**: precip_3d_sum_lag, storm_intensity, distance_to_outfall, precip_5d_sum_lag, temp_daily, month, wind_speed_1d_lag, meis_max_wave_3d_mean
 
-## 📌 1. 분석 개요 및 핵심 전처리 (Overview & Preprocessing)
-* **분석 대상 데이터**: 총 319회 유효 수질 검사 기록
-* **실제 오염 발생 횟수 (대장균 통제기준 초과)**: 13회
-* **최적화된 평가 지표 (ROC-AUC)**: **0.838** (GridSearch 자동 튜닝 적용)
-* **핵심 모델링 기법**: 
-  * XGBClassifier 기반 자동 하이퍼파라미터 튜닝 (`scale_pos_weight` 등 적용)
-  * 인위적인 조작을 배제한 순수 수학적 임계값 평가 로직 도입
+## 🎯 이중 임계값 시스템
 
----
+* 🟡 **주의 단계 (임계값 5.835)**
+  * 재현율(Recall): 76.9% - 오염 사태 10/13건 선제 탐지
+  * 오탐(FP): 8건
 
-## 💼 2. 베이스라인 대비 비즈니스 아웃풋 (Business ROI)
+* 🔴 **위험 단계 (임계값 6.290)**
+  * 재현율(Recall): 53.8% - 오염 사태 7/13건 탐지
+  * 오탐(FP): 0건 (기존 베이스라인 대비 대폭 감소)
 
-* **기존 관행 (일일 강수량 3.0mm 이상 시 일괄 통제)**
-  * 오탐(False Positive)은 58건 발생.
-* **AI 예측 모델 (Dual-Objective 적용)**
-  * 불필요한 입수 통제(오탐)를 **58건에서 1건으로 약 98.3% 감소**시킴.
-
----
-
-## 🎯 3. 자연스러운 이중 목적 함수 계단 (Natural Dual-Warning)
-
-* 🟡 **주의 단계 (임계값 0.964)** : 재현율(Recall) 가중 평가 지표(F2-Score)로 최적화
-  * **조건**: 오염 위험도(환산 점수) 0.964 이상 시 발령
-  * **효과**: 수질 오염 사태 중 **61.5% (8/13)**를 선제적으로 방어하며, 적정 수준의 오탐(1회)을 허용함.
-* 🔴 **위험 단계 (임계값 0.973)** : 정밀도(Precision) 가중 평가 지표(F0.5-Score)로 최적화
-  * **조건**: 오염 위험도(환산 점수) 0.973 이상 시 발령
-  * **효과**: 치명적인 수질 오염 중 **61.5% (8/13)**를 방어하며, **오보가 1회로 제한됨**.
-  * **결과적으로 강제 조작 코드 없이도 🟡주의(0.964) < 🔴위험(0.973)의 상식적인 임계값 순서가 자연스럽게 증명되었습니다!**
-
----
-
-## 🧬 4. 수질 악화를 유발하는 핵심 변수 (Feature Importance)
-1. `distance_to_outfall`
-2. `precip_1d_lag`
-3. `precip_3d_sum_lag`
+## 🔬 사용된 주요 변수
+1. `precip_3d_sum_lag`
+2. `storm_intensity`
+3. `distance_to_outfall`
 4. `precip_5d_sum_lag`
-5. `temp_1d_lag`
-6. `temp_daily`
-7. `month`
-8. `wind_speed_1d_lag`
-9. `wind_dir_1d_lag`
-10. `중앙사업단_vol_1d_lag`
-11. `중앙사업단_vol_3d_sum_lag`
-12. `영도사업단_vol_1d_lag`
-13. `영도사업단_vol_3d_sum_lag`
+5. `temp_daily`
+6. `month`
+7. `wind_speed_1d_lag`
+8. `meis_max_wave_3d_mean`
+9. `meis_max_wave_7d_mean`
+10. `meis_wind_speed_7d_mean`
+11. `meis_water_temp_7d_mean`
+12. `precip_1d_lag`
+13. `temp_1d_lag`
