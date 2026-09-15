@@ -7,136 +7,118 @@ RAW = os.path.join(BASE, 'Data_Raw')
 PROC = os.path.join(BASE, 'Data_Processed')
 os.makedirs(PROC, exist_ok=True)
 
-def clean_microbial_value(val):
-    if pd.isna(val):
-        return np.nan
-    val_str = str(val).strip()
-    if not val_str:
-        return np.nan
-    if '<' in val_str:
-        try:
-            return float(val_str.replace('<', '')) * 0.5
-        except:
-            return 0.5
-    if '>' in val_str:
-        try:
-            return float(val_str.replace('>', ''))
-        except:
-            return np.nan
-    val_str = val_str.replace(',', '').replace(' ', '')
+print("[Gwangalli] Preprocessing data from 10 distinct category CSVs...")
+
+def read_raw_csv(filename):
+    path = os.path.join(RAW, filename)
+    if not os.path.exists(path):
+        print(f"  Warning: {filename} not found. Returning empty dataframe.")
+        return pd.DataFrame(columns=['date'])
     try:
-        return float(val_str)
+        df = pd.read_csv(path, encoding='utf-8-sig')
     except:
-        return np.nan
+        df = pd.read_csv(path, encoding='cp949', errors='replace')
+    if 'date' in df.columns:
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        df = df.dropna(subset=['date'])
+    return df
 
-def get_distance(row):
-    detail = str(row['examinLcDetail']).upper()
-    if 'A' in detail: return 0.0
-    elif 'B' in detail: return 0.25
-    elif 'C' in detail: return 0.5
-    elif 'D' in detail: return 0.75
-    elif 'E' in detail: return 1.0
-    return 0.5 
+# 1. Read all 10 files
+df_precip = read_raw_csv('강수.csv')
+df_temp = read_raw_csv('기온.csv')
+df_wind = read_raw_csv('바람.csv')
+df_uv = read_raw_csv('자외선.csv')
+df_sewage = read_raw_csv('인근_하수_방류량.csv')
+df_river = read_raw_csv('인근_하천_방류량.csv')
+df_visitor = read_raw_csv('방문객.csv')
+df_tide = read_raw_csv('조수.csv')
+df_water = read_raw_csv('수질.csv')
+df_temp_water = read_raw_csv('수온.csv')
 
-print("[Gwangalli] Preprocessing data...")
+# 2. Base Date Frame (Use Water Quality as the base target)
+if df_water.empty:
+    print("  Error: 수질.csv is empty or missing. Cannot build target dataset.")
+    exit(1)
 
-# 1. Water Quality
-f_water = os.path.join(RAW, "water_quality_raw.csv")
-try:
-    df_water = pd.read_csv(f_water, encoding='utf-8-sig')
-except:
-    df_water = pd.read_csv(f_water, encoding='cp949', errors='replace')
+master_df = df_water.copy()
 
-df_water = df_water.dropna(subset=['examinDe']).copy()
-df_water = df_water[df_water['examinDe'].str.strip() != '']
-df_water['examinDe'] = pd.to_datetime(df_water['examinDe'], errors='coerce')
-df_water = df_water.dropna(subset=['examinDe'])
-df_water['date'] = pd.to_datetime(df_water['examinDe'].dt.date)
+# Ensure we have all necessary components from water quality
+if 'ecoli_max' in master_df.columns and 'any_exceed' not in master_df.columns:
+    master_df['ecoli_exceed'] = master_df['ecoli_max'] > 500
+    master_df['enterococcus_exceed'] = master_df.get('enterococcus_max', 0) > 100
+    master_df['any_exceed'] = (master_df['ecoli_exceed'] | master_df['enterococcus_exceed']).astype(int)
 
-df_water['ecoli_max'] = df_water['coliDetectCn'].apply(clean_microbial_value)
-df_water['enterococcus_max'] = df_water['entrcccsDetectCn'].apply(clean_microbial_value)
-df_water['ecoli_exceed'] = df_water['ecoli_max'] > 500
-df_water['enterococcus_exceed'] = df_water['enterococcus_max'] > 100
-df_water['any_exceed'] = (df_water['ecoli_exceed'] | df_water['enterococcus_exceed']).astype(int)
-df_water['distance_from_estuary_km'] = df_water.apply(get_distance, axis=1)
+# Helper function to merge
+def safe_merge(left, right):
+    if right.empty or len(right.columns) <= 1:
+        return left
+    return pd.merge(left, right, on='date', how='left')
 
-cols_to_keep = ['examinDe', 'beachKoreanNm', 'examinLcDetail', 'distance_from_estuary_km', 
-                'ecoli_max', 'enterococcus_max', 'any_exceed', 'date']
-df_water = df_water[cols_to_keep].copy()
+# 3. Create a continuous daily timeline to compute lags
+min_date = master_df['date'].min()
+max_date = master_df['date'].max()
+all_dates = pd.DataFrame({'date': pd.date_range(start=min_date, end=max_date)})
 
-# 2. Weather
-f_weather = os.path.join(RAW, "gwangalli_weather_2014_2026.csv")
-df_weather = pd.read_csv(f_weather)
-df_weather['time'] = pd.to_datetime(df_weather['time'])
-df_weather['date'] = df_weather['time'].dt.date
-
-df_weather_daily = df_weather.groupby('date').agg({
-    'precipitation_mm': 'sum',
-    'temperature_2m': 'mean',
-    'wind_speed_m_s': 'max'
-}).reset_index()
-df_weather_daily['date'] = pd.to_datetime(df_weather_daily['date'])
-df_weather_daily.rename(columns={'precipitation_mm': 'precip_daily', 
-                                 'temperature_2m': 'temp_daily', 
-                                 'wind_speed_m_s': 'wind_max'}, inplace=True)
-
-# 3. Sewage (Suyeong & Nambu)
-f_suyeong = os.path.join(RAW, "Discharge", "수영사업단 일일방류량.csv")
-df_suyeong = pd.read_csv(f_suyeong, encoding='cp949')
-df_suyeong['date'] = pd.to_datetime(df_suyeong.iloc[:, 0].astype(str), format='%Y%m%d')
-df_suyeong['suyeong_vol'] = df_suyeong.iloc[:, 1]
-df_suyeong = df_suyeong[['date', 'suyeong_vol']]
-
-f_nambu = os.path.join(RAW, "Discharge", "남부사업단 일일방류량.csv")
-df_nambu = pd.read_csv(f_nambu, encoding='cp949')
-df_nambu['date'] = pd.to_datetime(df_nambu.iloc[:, 0].astype(str), format='%Y%m%d')
-df_nambu['nambu_vol'] = df_nambu.iloc[:, 1]
-df_nambu = df_nambu[['date', 'nambu_vol']]
-
-df_suyeong['year'] = df_suyeong['date'].dt.year
-df_nambu['year'] = df_nambu['date'].dt.year
-
-suyeong_cap = df_suyeong.groupby('year')['suyeong_vol'].apply(lambda x: np.percentile(x.dropna(), 95)).reset_index()
-suyeong_cap.rename(columns={'suyeong_vol': 'suyeong_cap'}, inplace=True)
-
-nambu_cap = df_nambu.groupby('year')['nambu_vol'].apply(lambda x: np.percentile(x.dropna(), 95)).reset_index()
-nambu_cap.rename(columns={'nambu_vol': 'nambu_cap'}, inplace=True)
-
-# 4. Merge Features Table
-feature_table = df_weather_daily.copy()
-feature_table = pd.merge(feature_table, df_suyeong[['date', 'suyeong_vol']], on='date', how='left')
-feature_table = pd.merge(feature_table, df_nambu[['date', 'nambu_vol']], on='date', how='left')
-
-feature_table['year'] = feature_table['date'].dt.year
-feature_table = pd.merge(feature_table, suyeong_cap, on='year', how='left')
-feature_table = pd.merge(feature_table, nambu_cap, on='year', how='left')
+# Merge everything onto the continuous timeline
+feature_table = all_dates.copy()
+feature_table = safe_merge(feature_table, df_precip)
+feature_table = safe_merge(feature_table, df_temp)
+feature_table = safe_merge(feature_table, df_wind)
+feature_table = safe_merge(feature_table, df_uv)
+feature_table = safe_merge(feature_table, df_sewage)
+feature_table = safe_merge(feature_table, df_river)
+feature_table = safe_merge(feature_table, df_visitor)
+feature_table = safe_merge(feature_table, df_tide)
+feature_table = safe_merge(feature_table, df_temp_water)
 
 feature_table = feature_table.sort_values('date').reset_index(drop=True)
+feature_table['year'] = feature_table['date'].dt.year
+feature_table['month'] = feature_table['date'].dt.month
 
-# 5. Lagged Features
-feature_table['precip_1d_lag'] = feature_table['precip_daily'].shift(1)
-feature_table['precip_2d_sum_lag'] = feature_table['precip_daily'].rolling(2).sum().shift(1)
-feature_table['precip_3d_sum_lag'] = feature_table['precip_daily'].rolling(3).sum().shift(1)
-feature_table['temp_1d_lag'] = feature_table['temp_daily'].shift(1)
-feature_table['wind_max_1d_lag'] = feature_table['wind_max'].shift(1)
-feature_table['suyeong_vol_1d_lag'] = feature_table['suyeong_vol'].shift(1)
-feature_table['nambu_vol_1d_lag'] = feature_table['nambu_vol'].shift(1)
+# 4. Feature Engineering (Lags and Derived)
+if 'precip_daily' in feature_table.columns:
+    feature_table['precip_1d_lag'] = feature_table['precip_daily'].shift(1)
+    feature_table['precip_2d_sum_lag'] = feature_table['precip_daily'].rolling(2).sum().shift(1)
+    feature_table['precip_3d_sum_lag'] = feature_table['precip_daily'].rolling(3).sum().shift(1)
+    feature_table['precip_5d_sum_lag'] = feature_table['precip_daily'].rolling(5).sum().shift(1)
 
-cso_east_cond = (feature_table['suyeong_vol_1d_lag'] >= feature_table['suyeong_cap']) & (feature_table['precip_3d_sum_lag'] >= 5.0)
-feature_table['CSO_Flag_East'] = cso_east_cond.astype(int)
+if 'temp_daily' in feature_table.columns:
+    feature_table['temp_1d_lag'] = feature_table['temp_daily'].shift(1)
 
-cso_west_cond = (feature_table['nambu_vol_1d_lag'] >= feature_table['nambu_cap']) & (feature_table['precip_3d_sum_lag'] >= 5.0)
-feature_table['CSO_Flag_West'] = cso_west_cond.astype(int)
+if 'wind_max' in feature_table.columns:
+    feature_table['wind_max_1d_lag'] = feature_table['wind_max'].shift(1)
 
-# 6. Final Merge
-master_df = pd.merge(df_water, feature_table, on='date', how='left')
-master_df = master_df.dropna(subset=['ecoli_max'])
+if 'solar_radiation_sum' in feature_table.columns:
+    feature_table['solar_radiation_1d_lag'] = feature_table['solar_radiation_sum'].shift(1)
+
+if 'suyeong_vol' in feature_table.columns:
+    feature_table['suyeong_vol_1d_lag'] = feature_table['suyeong_vol'].shift(1)
+    suyeong_cap = feature_table.groupby('year')['suyeong_vol'].transform(lambda x: np.percentile(x.dropna(), 95) if len(x.dropna())>0 else np.nan)
+    feature_table['suyeong_cap'] = suyeong_cap
+    if 'precip_3d_sum_lag' in feature_table.columns:
+        cso_east_cond = (feature_table['suyeong_vol_1d_lag'] >= feature_table['suyeong_cap']) & (feature_table['precip_3d_sum_lag'] >= 5.0)
+        feature_table['CSO_Flag_East'] = cso_east_cond.astype(int)
+
+if 'nambu_vol' in feature_table.columns:
+    feature_table['nambu_vol_1d_lag'] = feature_table['nambu_vol'].shift(1)
+    nambu_cap = feature_table.groupby('year')['nambu_vol'].transform(lambda x: np.percentile(x.dropna(), 95) if len(x.dropna())>0 else np.nan)
+    feature_table['nambu_cap'] = nambu_cap
+    if 'precip_3d_sum_lag' in feature_table.columns:
+        cso_west_cond = (feature_table['nambu_vol_1d_lag'] >= feature_table['nambu_cap']) & (feature_table['precip_3d_sum_lag'] >= 5.0)
+        feature_table['CSO_Flag_West'] = cso_west_cond.astype(int)
+
+# 5. Final Join
+master_df = pd.merge(master_df, feature_table, on='date', how='left')
+
+# Drop rows where target is missing
+if 'ecoli_max' in master_df.columns:
+    master_df = master_df.dropna(subset=['ecoli_max'])
 
 out_path = os.path.join(PROC, "master_dataset.csv")
 master_df.to_csv(out_path, index=False, encoding='utf-8-sig')
 
-print(f"Master dataset created with {len(master_df)} rows.")
-print(f"Total CSO_East events observed: {master_df['CSO_Flag_East'].sum()}")
-print(f"Total CSO_West events observed: {master_df['CSO_Flag_West'].sum()}")
+print(f"Master dataset created with {len(master_df)} rows and {len(master_df.columns)} columns.")
+if 'CSO_Flag_East' in master_df.columns:
+    print(f"Total CSO_East events observed: {master_df['CSO_Flag_East'].sum()}")
 print(f"Saved to {out_path}")
 print("[Gwangalli] Preprocessing complete!")
