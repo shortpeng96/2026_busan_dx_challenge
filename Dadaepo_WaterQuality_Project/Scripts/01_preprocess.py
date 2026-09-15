@@ -108,6 +108,10 @@ if 'river_discharge' in feature_table.columns:
     feature_table['discharge_1d_lag'] = feature_table['river_discharge'].shift(1)
     feature_table['discharge_3d_sum_lag'] = feature_table['river_discharge'].rolling(3).sum().shift(1)
 
+if 'tide_max' in feature_table.columns and 'tide_min' in feature_table.columns:
+    feature_table['tide_range'] = feature_table['tide_max'] - feature_table['tide_min']
+    feature_table['tide_range_1d_lag'] = feature_table['tide_range'].shift(1)
+
 # Sensor and Visitor lags
 lag_cols = [c for c in df_temp_water.columns if c != 'date'] + ['visitor_count']
 for col in lag_cols:
