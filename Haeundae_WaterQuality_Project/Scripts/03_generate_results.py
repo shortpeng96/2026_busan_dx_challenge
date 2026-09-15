@@ -98,7 +98,7 @@ import matplotlib
 cmap = matplotlib.colormaps['Blues']
 colors_bar = [cmap(0.4 + 0.55 * (i / max(1, len(feat_imp)-1))) for i in range(len(feat_imp))]
 feat_imp.plot(kind='barh', ax=ax, color=colors_bar, width=0.75, edgecolor='none')
-ax.set_title(f'광안리 해수욕장 - 수질 예측 핵심 변수 중요도', color=C_NAVY, weight='bold', fontsize=16)
+ax.set_title(f'{BEACH_KOR} 해수욕장 - 수질 예측 핵심 변수 중요도', color=C_NAVY, weight='bold', fontsize=16)
 
 for i, v in enumerate(feat_imp.values):
     ax.text(v + (max(feat_imp.values) * 0.01), i, f'{v:.3f}', va='center', color=C_NAVY, fontsize=11, weight='bold')
@@ -141,7 +141,7 @@ for autotext in autotexts:
 
 ax.text(0, 0, f'AUC\n{final_auc:.3f}', ha='center', va='center', fontsize=22, weight='bold', color=C_NAVY)
 ax.legend(wedges, cat_series.index, title="원인 카테고리", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
-ax.set_title(f'광안리 해수욕장 - 카테고리별 오염 기여도', color=C_NAVY, weight='bold', fontsize=16)
+ax.set_title(f'{BEACH_KOR} 해수욕장 - 카테고리별 오염 기여도', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
 plt.savefig(os.path.join(RES, f'feature_importance_donut_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
@@ -160,7 +160,7 @@ for ax, (threshold, label, color) in zip(axes, [
     ax.set_xlabel('AI 모델이 내린 판정 (예측값)', weight='bold')
     ax.set_ylabel('바다의 실제 상태 (실제값)', weight='bold')
 
-plt.suptitle(f'광안리 해수욕장 이중 기준선 혼동행렬 (Confusion Matrix)', color=C_NAVY, weight='bold', fontsize=16)
+plt.suptitle(f'{BEACH_KOR} 해수욕장 이중 기준선 혼동행렬 (Confusion Matrix)', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
 plt.savefig(os.path.join(RES, f'confusion_matrix_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
@@ -180,7 +180,7 @@ if len(y_pred_arr[y_true_arr == 1]) > 0:
 ax.axvline(t_yellow + epsilon, color=C_WARN, linestyle='--', lw=2.5, label=f'1단계: 경고 알림 발송 기준선 (점수: {t_yellow:.3f})')
 ax.axvline(t_red + epsilon, color=C_ORANGE, linestyle=':', lw=2.5, label=f'2단계: 해수욕장 입수 통제 기준선 (점수: {t_red:.3f})')
 
-ax.set_title(f'광안리 해수욕장 - 정상/오염 데이터별 예측 점수 분포도 (Log Scale)', color=C_NAVY, weight='bold', fontsize=16)
+ax.set_title(f'{BEACH_KOR} 해수욕장 - 정상/오염 데이터별 예측 점수 분포도 (Log Scale)', color=C_NAVY, weight='bold', fontsize=16)
 ax.set_xlabel('AI가 예측한 오염 위험도 점수 (로그 스케일, 점수가 높을수록 오염 확률 높음)', fontsize=12, color=C_TEXT, weight='bold', labelpad=10)
 ax.set_ylabel('데이터 밀도 (해당 점수대에 분포한 데이터의 양)', fontsize=12, color=C_TEXT, weight='bold', labelpad=10)
 
@@ -232,7 +232,7 @@ text_colors_precision = ['white', C_TEXT]
 for bar, p, tc in zip(bars2, precisions, text_colors_precision):
     axes[1].text(bar.get_x() + bar.get_width()/2, bar.get_height() - 3, f'{p:.1f}%', ha='center', va='top', fontsize=14, color=tc, weight='bold')
 
-plt.suptitle(f'광안리 해수욕장 - AI 도입 효과 (ROI) 시각화', color=C_NAVY, weight='bold', fontsize=16)
+plt.suptitle(f'{BEACH_KOR} 해수욕장 - AI 도입 효과 (ROI) 시각화', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
 plt.savefig(os.path.join(RES, f'roi_comparison_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
