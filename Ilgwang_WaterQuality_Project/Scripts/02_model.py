@@ -51,6 +51,9 @@ feat_cols = [c for c in df.columns
              and not pd.api.types.is_datetime64_any_dtype(df[c])]
 
 X = df[feat_cols]
+# Drop features that are all NaN
+X = X.dropna(axis=1, how='all')
+feat_cols = X.columns.tolist()
 
 # 2. Impute missing values
 print(f"  Imputing {X.isna().sum().sum()} missing values across {len(feat_cols)} features...")

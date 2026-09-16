@@ -30,7 +30,7 @@ final_auc = model_data['auc']
 t_yellow = model_data['t_yellow']
 t_red = model_data['t_red']
 features = model_data['features']
-model = model_data['model']
+model = model_data['model_xgb']
 
 preds_y = (y_pred >= t_yellow).astype(int)
 preds_r = (y_pred >= t_red).astype(int)
@@ -61,22 +61,129 @@ plt.rcParams['axes.facecolor'] = C_BG
 
 # Feature Translation Dictionary (Korean)
 feat_kor_map = {
+    # 기상 변수
+    'precip_daily': '당일 강수량',
     'precip_1d_lag': '1일 전 강수량',
     'precip_2d_sum_lag': '2일 누적 강수량',
     'precip_3d_sum_lag': '3일 누적 강수량',
     'precip_5d_sum_lag': '5일 누적 강수량',
-    'temp_1d_lag': '1일 전 기온',
     'temp_daily': '일평균 기온',
-    'wind_speed_1d_lag': '1일 전 평균 풍속',
-    'wind_x_distance': '바람 확산 스코어(거리x풍속)',
-    'cso_x_distance': 'CSO 확산 스코어(거리x강수)',
-    'storm_intensity': '폭풍 강도(강수x바람)',
-    'distance_to_outfall': '측정소까지의 거리',
-    'month': '월(Month)',
-    'meis_max_wave_3d_mean': '최대 파고 3일 평균',
-    'meis_max_wave_7d_mean': '최대 파고 7일 평균',
-    'meis_wind_speed_7d_mean': '부이 풍속 7일 평균',
-    'meis_water_temp_7d_mean': '수온 7일 평균',
+    'temp_1d_lag': '1일 전 기온',
+    'wind_max': '최대 풍속',
+    'wind_dir': '풍향',
+    'wind_max_1d_lag': '1일 전 최대 풍속',
+    'solar_radiation_sum': '일사량',
+    'solar_radiation_1d_lag': '1일 전 일사량',
+    'CSO_Flag_Rain': '집중호우 여부(강수≥3mm)',
+    'dry_days_count': '연속 맑은 날 수',
+    'year': '연도',
+    'month': '월',
+    'is_weekend': '주말 여부',
+    # 하수 방류량
+    'gijang_discharge_m3_day': '기장사업소 당일 방류량',
+    'gijang_discharge_1d_lag': '기장사업소 1일 전 방류량',
+    'gijang_discharge_3d_mean': '기장사업소 3일 평균 방류량',
+    'jeonggwan_discharge_m3_day': '정관사업단 당일 방류량',
+    'jeonggwan_discharge_1d_lag': '정관사업단 1일 전 방류량',
+    'jeonggwan_discharge_3d_mean': '정관사업단 3일 평균 방류량',
+    'munoseong_discharge_m3_day': '문오성사업소 당일 방류량',
+    'munoseong_discharge_1d_lag': '문오성사업소 1일 전 방류량',
+    'munoseong_discharge_3d_mean': '문오성사업소 3일 평균 방류량',
+    'ilgwang_discharge_m3_day': '일광사업소 당일 방류량',
+    'ilgwang_discharge_1d_lag': '일광사업소 1일 전 방류량',
+    'ilgwang_discharge_3d_mean': '일광사업소 3일 평균 방류량',
+    'jungang_discharge_m3_day': '중앙사업단 당일 방류량',
+    'jungang_discharge_1d_lag': '중앙사업단 1일 전 방류량',
+    'jungang_discharge_3d_mean': '중앙사업단 3일 평균 방류량',
+    'dongbu_discharge_m3_day': '동부사업소 당일 방류량',
+    'dongbu_discharge_1d_lag': '동부사업소 1일 전 방류량',
+    'dongbu_discharge_3d_mean': '동부사업소 3일 평균 방류량',
+    'haeundae_sewage_discharge_m3_day': '해운대사업소 당일 방류량',
+    'haeundae_sewage_discharge_1d_lag': '해운대사업소 1일 전 방류량',
+    'haeundae_sewage_discharge_3d_mean': '해운대사업소 3일 평균 방류량',
+    'sewage_discharge_1d_lag': '1일 전 하수 방류량',
+    'sewage_discharge_3d_sum_lag': '3일 누적 하수 방류량',
+    # 조수
+    'tide_max': '조위 최고',
+    'tide_min': '조위 최저',
+    'tide_range': '조차(최고-최저)',
+    'tide_range_1d_lag': '1일 전 조차',
+    # 수온
+    'avg_water_temp': '평균 해수 수온',
+    'avg_water_temp_1d_lag': '1일 전 평균 해수 수온',
+    # 부이 — 임랑해수욕장
+    '임랑해수욕장_수온(℃)': '임랑 부이 수온',
+    '임랑해수욕장_기온(℃)': '임랑 부이 기온',
+    '임랑해수욕장_풍속(m/s)': '임랑 부이 풍속',
+    '임랑해수욕장_풍향(deg)': '임랑 부이 풍향',
+    '임랑해수욕장_염분(PSU)': '임랑 부이 염분',
+    '임랑해수욕장_유의파고(m)': '임랑 부이 유의파고',
+    '임랑해수욕장_최대파고(m)': '임랑 부이 최대파고',
+    '임랑해수욕장_유의파주기(sec)': '임랑 부이 유의파주기',
+    '임랑해수욕장_최대파주기(sec)': '임랑 부이 최대파주기',
+    '임랑해수욕장_유속(cm/s)': '임랑 부이 유속',
+    '임랑해수욕장_유향(deg)': '임랑 부이 유향',
+    '임랑해수욕장_수온(℃)_1d_lag': '임랑 부이 수온 (1일 전)',
+    '임랑해수욕장_기온(℃)_1d_lag': '임랑 부이 기온 (1일 전)',
+    '임랑해수욕장_풍속(m/s)_1d_lag': '임랑 부이 풍속 (1일 전)',
+    '임랑해수욕장_풍향(deg)_1d_lag': '임랑 부이 풍향 (1일 전)',
+    '임랑해수욕장_염분(PSU)_1d_lag': '임랑 부이 염분 (1일 전)',
+    '임랑해수욕장_유의파고(m)_1d_lag': '임랑 부이 유의파고 (1일 전)',
+    '임랑해수욕장_최대파고(m)_1d_lag': '임랑 부이 최대파고 (1일 전)',
+    '임랑해수욕장_유의파주기(sec)_1d_lag': '임랑 부이 유의파주기 (1일 전)',
+    '임랑해수욕장_최대파주기(sec)_1d_lag': '임랑 부이 최대파주기 (1일 전)',
+    '임랑해수욕장_유속(cm/s)_1d_lag': '임랑 부이 유속 (1일 전)',
+    '임랑해수욕장_유향(deg)_1d_lag': '임랑 부이 유향 (1일 전)',
+    # 부이 — 송정
+    '송정_수온(℃)': '송정 부이 수온',
+    '송정_기온(℃)': '송정 부이 기온',
+    '송정_풍속(m/s)': '송정 부이 풍속',
+    '송정_풍향(deg)': '송정 부이 풍향',
+    '송정_염분(PSU)': '송정 부이 염분',
+    '송정_유의파고(m)': '송정 부이 유의파고',
+    '송정_최대파고(m)': '송정 부이 최대파고',
+    '송정_유의파주기(sec)': '송정 부이 유의파주기',
+    '송정_최대파주기(sec)': '송정 부이 최대파주기',
+    '송정_유속(cm/s)': '송정 부이 유속',
+    '송정_유향(deg)': '송정 부이 유향',
+    '송정_수온(℃)_1d_lag': '송정 부이 수온 (1일 전)',
+    '송정_기온(℃)_1d_lag': '송정 부이 기온 (1일 전)',
+    '송정_풍속(m/s)_1d_lag': '송정 부이 풍속 (1일 전)',
+    '송정_풍향(deg)_1d_lag': '송정 부이 풍향 (1일 전)',
+    '송정_염분(PSU)_1d_lag': '송정 부이 염분 (1일 전)',
+    '송정_유의파고(m)_1d_lag': '송정 부이 유의파고 (1일 전)',
+    '송정_최대파고(m)_1d_lag': '송정 부이 최대파고 (1일 전)',
+    '송정_유의파주기(sec)_1d_lag': '송정 부이 유의파주기 (1일 전)',
+    '송정_최대파주기(sec)_1d_lag': '송정 부이 최대파주기 (1일 전)',
+    '송정_유속(cm/s)_1d_lag': '송정 부이 유속 (1일 전)',
+    '송정_유향(deg)_1d_lag': '송정 부이 유향 (1일 전)',
+    # 부이 — 감천항
+    '감천항_유향(deg)': '감천항 부이 유향',
+    '감천항_유속(cm/s)': '감천항 부이 유속',
+    '감천항_최대파고(m)': '감천항 부이 최대파고',
+    '감천항_유의파고(m)': '감천항 부이 유의파고',
+    '감천항_수온(℃)': '감천항 부이 수온',
+    '감천항_유향(deg)_1d_lag': '감천항 부이 유향 (1일 전)',
+    '감천항_유속(cm/s)_1d_lag': '감천항 부이 유속 (1일 전)',
+    '감천항_최대파고(m)_1d_lag': '감천항 부이 최대파고 (1일 전)',
+    '감천항_유의파고(m)_1d_lag': '감천항 부이 유의파고 (1일 전)',
+    '감천항_수온(℃)_1d_lag': '감천항 부이 수온 (1일 전)',
+    # 부이 — 부산항
+    '부산항_유향(deg)': '부산항 부이 유향',
+    '부산항_유속(cm/s)': '부산항 부이 유속',
+    '부산항_최대파고(m)': '부산항 부이 최대파고',
+    '부산항_유의파고(m)': '부산항 부이 유의파고',
+    '부산항_수온(℃)': '부산항 부이 수온',
+    '부산항_유향(deg)_1d_lag': '부산항 부이 유향 (1일 전)',
+    '부산항_유속(cm/s)_1d_lag': '부산항 부이 유속 (1일 전)',
+    '부산항_최대파고(m)_1d_lag': '부산항 부이 최대파고 (1일 전)',
+    '부산항_유의파고(m)_1d_lag': '부산항 부이 유의파고 (1일 전)',
+    '부산항_수온(℃)_1d_lag': '부산항 부이 수온 (1일 전)',
+    # 기타
+    'discharge_1d_lag': '1일 전 하천 방류량',
+    'discharge_3d_sum_lag': '3일 누적 하천 방류량',
+    'CSO_Flag': '월류수(CSO) 발생 여부',
+    'distance_from_estuary_km': '하구까지의 거리',
 }
 
 print("  Generating feature importance...")
@@ -104,11 +211,20 @@ plt.close()
 
 print("  Generating feature importance donut chart...")
 category_map = {
-    '기상 요인': ['precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'precip_5d_sum_lag', 'temp_1d_lag', 'temp_daily', 'wind_speed_1d_lag', 'storm_intensity', 'wind_x_distance', 'cso_x_distance', 'month'],
-    '해양기상(부이) 요인': ['meis_max_wave_3d_mean', 'meis_max_wave_7d_mean', 'meis_wind_speed_7d_mean', 'meis_water_temp_7d_mean'],
-    '지리적 요인': ['distance_to_outfall']
+    '기상 요인': ['precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'precip_5d_sum_lag', 'precip_daily',
+                  'temp_1d_lag', 'temp_daily', 'wind_max', 'wind_max_1d_lag', 'wind_dir', 'solar_radiation_sum', 'solar_radiation_1d_lag',
+                  'CSO_Flag_Rain', 'dry_days_count', 'month', 'year', 'is_weekend'],
+    '해양부이 요인': ['감천항_유향(deg)', '감천항_유속(cm/s)', '감천항_최대파고(m)', '감천항_유의파고(m)', '감천항_수온(℃)',
+                     '감천항_유향(deg)_1d_lag', '감천항_유속(cm/s)_1d_lag', '감천항_최대파고(m)_1d_lag',
+                     '감천항_유의파고(m)_1d_lag', '감천항_수온(℃)_1d_lag',
+                     '부산항_유향(deg)', '부산항_유속(cm/s)', '부산항_최대파고(m)', '부산항_유의파고(m)', '부산항_수온(℃)',
+                     '부산항_유향(deg)_1d_lag', '부산항_유속(cm/s)_1d_lag', '부산항_최대파고(m)_1d_lag',
+                     '부산항_유의파고(m)_1d_lag', '부산항_수온(℃)_1d_lag'],
+    '하수처리 요인': ['jungang_discharge_m3_day', 'jungang_discharge_1d_lag', 'jungang_discharge_3d_mean',
+                     'sewage_discharge_1d_lag', 'sewage_discharge_3d_sum_lag', 'CSO_Flag'],
+    '조위·수온 요인': ['tide_max', 'tide_min', 'tide_range', 'tide_range_1d_lag', 'avg_water_temp', 'avg_water_temp_1d_lag'],
 }
-cat_importances = {'기상 요인': 0, '해양기상(부이) 요인': 0, '지리적 요인': 0}
+cat_importances = {'기상 요인': 0, '해양부이 요인': 0, '하수처리 요인': 0, '조위·수온 요인': 0}
 for feat, imp in zip(features, importances):
     found = False
     for cat, feats in category_map.items():
@@ -159,26 +275,37 @@ plt.savefig(os.path.join(RES, f'confusion_matrix_{BEACH}.png'), dpi=150, facecol
 plt.close()
 
 print("  Generating KDE plot...")
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(11, 6))
 y_pred_arr = np.array(y_pred)
 y_true_arr = np.array(y_true)
 
-epsilon = 1e-5
-if len(y_pred_arr[y_true_arr == 0]) > 0:
-    sns.kdeplot(y_pred_arr[y_true_arr == 0] + epsilon, ax=ax, color=C_BLUE, fill=True, alpha=0.5, label='정상 수질을 기록한 날의 AI 예측 점수', linewidth=2, log_scale=True)
-if len(y_pred_arr[y_true_arr == 1]) > 0:
-    sns.kdeplot(y_pred_arr[y_true_arr == 1] + epsilon, ax=ax, color=C_ORANGE, fill=True, alpha=0.5, label='실제 오염이 발생했던 날의 AI 예측 점수', linewidth=2, log_scale=True)
+epsilon = 1e-10
+normal_scores  = y_pred_arr[y_true_arr == 0]
+positive_scores = y_pred_arr[y_true_arr == 1]
 
-ax.axvline(t_yellow + epsilon, color=C_WARN, linestyle='--', lw=2.5, label=f'1단계: 경고 알림 발송 기준선 (점수: {t_yellow:.3f})')
-ax.axvline(t_red + epsilon, color=C_ORANGE, linestyle=':', lw=2.5, label=f'2단계: 해수욕장 입수 통제 기준선 (점수: {t_red:.3f})')
+if len(normal_scores) > 0:
+    sns.kdeplot(normal_scores + epsilon, ax=ax, color=C_BLUE, fill=True, alpha=0.5,
+                label='정상 수질을 기록한 날의 AI 예측 점수', linewidth=2, log_scale=True)
+if len(positive_scores) > 0:
+    sns.kdeplot(positive_scores + epsilon, ax=ax, color=C_ORANGE, fill=True, alpha=0.5,
+                label='실제 오염이 발생했던 날의 AI 예측 점수', linewidth=2, log_scale=True)
 
-ax.set_title(f'{BEACH_KOR} 해수욕장 - 정상/오염 데이터별 예측 점수 분포도 (Log Scale)', color=C_NAVY, weight='bold', fontsize=16)
-ax.set_xlabel('AI가 예측한 오염 위험도 점수 (로그 스케일)', fontsize=12, color=C_TEXT, weight='bold', labelpad=10)
-ax.set_ylabel('데이터 밀도', fontsize=12, color=C_TEXT, weight='bold', labelpad=10)
+ax.axvline(t_yellow + epsilon, color=C_WARN, linestyle='--', lw=2.5,
+           label=f'1단계: 경고 알림 발송 기준선 (점수: {t_yellow:.3f})')
+ax.axvline(t_red + epsilon, color=C_ORANGE, linestyle=':', lw=2.5,
+           label=f'2단계: 해수욕장 입수 통제 기준선 (점수: {t_red:.3f})')
 
-from matplotlib.ticker import ScalarFormatter
-ax.xaxis.set_major_formatter(ScalarFormatter())
-ax.set_xlim(0.01, max(y_pred_arr.max() * 1.5, 10))
+ax.set_title(f'{BEACH_KOR} 해수욕장 - 정상/오염 데이터별 예측 점수 분포도 (Log Scale)',
+             color=C_NAVY, weight='bold', fontsize=16)
+ax.set_xlabel('AI가 예측한 오염 위험도 점수 (로그 스케일, 점수가 높을수록 오염 확률 높음)',
+             fontsize=12, color=C_TEXT, weight='bold', labelpad=10)
+ax.set_ylabel('데이터 밀도 (해당 점수대에 분포한 데이터의 양)',
+              fontsize=12, color=C_TEXT, weight='bold', labelpad=10)
+
+# x-axis: cover actual data range on log scale
+all_min = max(min(y_pred_arr) * 0.1, 1e-9)
+all_max = min(max(y_pred_arr) * 2, 1.5)
+ax.set_xlim(all_min, all_max)
 
 ax.legend(fontsize=10, loc='upper right', frameon=True, shadow=True)
 plt.tight_layout()
@@ -248,43 +375,146 @@ plt.close()
 # Time Series Line Plot
 print("  Generating Time Series Line Plot...")
 df_plot = pred_df.copy()
-# Note: Since pred_df might not have 'date' yet, we pull it from master_dataset
 master_df = pd.read_csv(os.path.join(PROC, 'master_dataset.csv'))
 master_df['date'] = pd.to_datetime(master_df['date'])
 df_plot['date'] = master_df['date'].values
-
-# Reconstruct predictions. 
-# y_target in Songdo is log_ecoli, so we invert it with expm1
-df_plot['pred_entero'] = np.expm1(df_plot['y_pred'])
-df_plot['true_entero'] = master_df['ecoli_max'].values
+df_plot['true_ecoli'] = master_df['ecoli_max'].values
 
 year_counts = df_plot['date'].dt.year.value_counts()
 best_year = year_counts.idxmax()
-df_year = df_plot[df_plot['date'].dt.year == best_year]
+df_year = df_plot[df_plot['date'].dt.year == best_year].copy()
 
-df_melt = df_year.melt(id_vars=['date'], value_vars=['true_entero', 'pred_entero'], 
-                       var_name='Type', value_name='Concentration')
-df_melt['Type'] = df_melt['Type'].map({'true_entero': '실제 수치 (Actual)', 'pred_entero': 'AI 예측 (Predicted)'})
+fig, ax1 = plt.subplots(figsize=(14, 6))
 
-fig, ax = plt.subplots(figsize=(12, 6))
-sns.lineplot(data=df_melt, x='date', y='Concentration', hue='Type', 
-             linewidth=2.5, palette=[C_TEXT, C_ORANGE], ax=ax)
+# Left axis: actual ecoli concentration
+ax1.fill_between(df_year['date'], df_year['true_ecoli'], alpha=0.25, color=C_BLUE, label='실제 대장균 농도')
+ax1.plot(df_year['date'], df_year['true_ecoli'], color=C_BLUE, linewidth=2, label='실제 대장균 농도')
+ax1.set_xlabel('측정 일자', weight='bold', fontsize=12)
+ax1.set_ylabel('대장균 농도 (CFU/100mL)', color=C_BLUE, weight='bold', fontsize=12)
+ax1.tick_params(axis='y', labelcolor=C_BLUE)
+ax1.axhline(y=500, color=C_ORANGE, linestyle='--', linewidth=1.2, alpha=0.7, label='기준치 (500 CFU)')
 
-ax.set_title(f'{BEACH_KOR} 해수욕장 - 실제 수질 vs AI 예측 트렌드 ({best_year}년)', color=C_NAVY, weight='bold', fontsize=16)
-ax.set_xlabel('측정 일자 (Date)', weight='bold', fontsize=12)
-ax.set_ylabel('대장균 농도 (E.coli)', weight='bold', fontsize=12)
+# Right axis: AI predicted probability
+ax2 = ax1.twinx()
+ax2.fill_between(df_year['date'], df_year['y_pred'], alpha=0.2, color=C_ORANGE)
+ax2.plot(df_year['date'], df_year['y_pred'], color=C_ORANGE, linewidth=2.5, linestyle='--', label='AI 위험 확률')
+ax2.axhline(y=t_yellow, color='#FFC107', linestyle=':', linewidth=1.5, alpha=0.9, label=f'주의 기준 ({t_yellow:.2f})')
+ax2.axhline(y=t_red, color='red', linestyle=':', linewidth=1.5, alpha=0.9, label=f'위험 기준 ({t_red:.2f})')
+ax2.set_ylabel('AI 위험 확률 (0~1)', color=C_ORANGE, weight='bold', fontsize=12)
+ax2.tick_params(axis='y', labelcolor=C_ORANGE)
+ax2.set_ylim(0, 1)
 
 import matplotlib.dates as mdates
-ax.xaxis.set_major_formatter(mdates.DateFormatter('%m월 %d일'))
+ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m월 %d일'))
 plt.xticks(rotation=45)
-ax.xaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
-ax.yaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-ax.legend(loc='upper right', frameon=True)
+ax1.xaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
 
+# Combined legend
+lines1, labels1 = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right', frameon=True, fontsize=9)
+
+ax1.spines['top'].set_visible(False)
+ax2.spines['top'].set_visible(False)
+
+fig.patch.set_facecolor(C_BG)
+ax1.set_facecolor(C_BG)
+ax2.set_facecolor(C_BG)
+
+ax1.set_title(f'{BEACH_KOR} 해수욕장 - 실제 수질 vs AI 위험 확률 ({best_year}년)', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
 plt.savefig(os.path.join(RES, f'timeseries_lineplot_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
+plt.close()
+
+# ── 새 차트1: 예측 점수 버블 차트 ─────────────────────────────────────────
+print("  Generating prediction bubble chart...")
+df_bubble = pred_df.copy()
+df_bubble['date'] = pd.to_datetime(df_bubble['date'])
+df_bubble = df_bubble.sort_values('date').reset_index(drop=True)
+df_bubble['idx'] = range(len(df_bubble))
+df_bubble['label_kor'] = df_bubble['y_true'].map({0: '정상 (기준 이하)', 1: '오염 (기준 초과)'})
+
+fig, ax = plt.subplots(figsize=(14, 6))
+normal_mask  = df_bubble['y_true'] == 0
+positive_mask = df_bubble['y_true'] == 1
+
+ax.scatter(df_bubble.loc[normal_mask, 'idx'], df_bubble.loc[normal_mask, 'y_pred'],
+           c=C_BLUE, alpha=0.6, s=60, label='정상 수질일', zorder=3, edgecolors='white', linewidth=0.5)
+ax.scatter(df_bubble.loc[positive_mask, 'idx'], df_bubble.loc[positive_mask, 'y_pred'],
+           c='#E63946', alpha=0.9, s=180, marker='D', label='실제 오염일', zorder=5, edgecolors='white', linewidth=1)
+
+ax.axhline(y=t_yellow, color=C_WARN, linestyle='--', lw=2, label=f'주의 기준 ({t_yellow:.2f})')
+ax.axhline(y=t_red,    color='#E63946', linestyle=':', lw=2, label=f'위험 기준 ({t_red:.2f})')
+
+ax.set_yscale('log')
+ax.set_ylim(max(df_bubble['y_pred'].min() * 0.1, 1e-9), 1.5)
+ax.set_ylabel('AI 예측 위험 확률 (로그 스케일)', weight='bold', fontsize=12)
+ax.set_xlabel('측정 일자 (시간 순)', weight='bold', fontsize=12)
+ax.set_title(f'{BEACH_KOR} 해수욕장 - 전체 측정일 예측 점수 vs 실제 라벨', color=C_NAVY, weight='bold', fontsize=16)
+
+# x축 도메인 연도 레이블
+year_ticks = df_bubble.groupby(df_bubble['date'].dt.year)['idx'].first()
+ax.set_xticks(year_ticks.values)
+ax.set_xticklabels([f'{y}년' for y in year_ticks.index], fontsize=10)
+
+for _, row in df_bubble[positive_mask].iterrows():
+    ax.annotate(f"{row['date'].strftime('%m/%d')}",
+                (row['idx'], row['y_pred']),
+                textcoords='offset points', xytext=(4, 4),
+                fontsize=7, color='#E63946', alpha=0.8)
+
+ax.xaxis.grid(True, linestyle='--', alpha=0.4, color='#adb5bd')
+ax.yaxis.grid(True, linestyle='--', alpha=0.4, color='#adb5bd')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.legend(fontsize=10, loc='upper right', frameon=True)
+fig.patch.set_facecolor(C_BG)
+ax.set_facecolor(C_BG)
+plt.tight_layout()
+plt.savefig(os.path.join(RES, f'prediction_bubble_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
+plt.close()
+
+# ── 새 차트2: 월별 위험도 히트맵 ─────────────────────────────────────────
+print("  Generating risk calendar heatmap...")
+df_cal = pred_df.copy()
+df_cal['date'] = pd.to_datetime(df_cal['date'])
+df_cal['year']  = df_cal['date'].dt.year
+df_cal['month'] = df_cal['date'].dt.month
+
+# 월별 최대 예측 점수 (pivot)
+cal_pred = df_cal.groupby(['year','month'])['y_pred'].max().reset_index()
+cal_pred_pivot = cal_pred.pivot(index='year', columns='month', values='y_pred')
+
+# 오염 발생 월 (y_true=1 존재)
+cal_contaminated = df_cal[df_cal['y_true']==1].groupby(['year','month']).size().reset_index(name='cnt')
+
+fig, ax = plt.subplots(figsize=(13, max(4, len(cal_pred_pivot) * 0.7 + 1.5)))
+import matplotlib.colors as mcolors
+cmap_risk = mcolors.LinearSegmentedColormap.from_list('risk',
+    ['#eaf4fb', '#a8d4f5', '#f9c74f', '#f3722c', '#e63946'])
+
+sns.heatmap(cal_pred_pivot, ax=ax, cmap=cmap_risk, vmin=0, vmax=1,
+            linewidths=0.5, linecolor='#ccc', annot=True, fmt='.2f',
+            annot_kws={'size': 9, 'weight': 'bold'},
+            cbar_kws={'label': 'AI 위험도 점수 (0=저위험 / 1=고위험)'})
+
+month_labels = [f'{i}월' for i in range(1, 13)]
+ax.set_xticklabels([month_labels[int(c)-1] for c in cal_pred_pivot.columns], fontsize=10)
+ax.set_yticklabels([str(y) + '년' for y in cal_pred_pivot.index], fontsize=10, rotation=0)
+ax.set_xlabel('')
+ax.set_ylabel('')
+
+# 오염 발생 월에 색 테두리
+for _, row in cal_contaminated.iterrows():
+    if row['year'] in cal_pred_pivot.index and row['month'] in cal_pred_pivot.columns:
+        r = list(cal_pred_pivot.index).index(row['year'])
+        c = list(cal_pred_pivot.columns).index(row['month'])
+        ax.add_patch(plt.Rectangle((c, r), 1, 1, fill=False, edgecolor='#e63946', lw=3, zorder=5))
+        ax.text(c + 0.5, r + 0.15, '❌', ha='center', fontsize=10, color='#e63946', zorder=6)
+
+ax.set_title(f'{BEACH_KOR} 해수욕장 - AI 월별 위험도 달력 (❌ = 실제 오염 발생)', color=C_NAVY, weight='bold', fontsize=15)
+plt.tight_layout()
+plt.savefig(os.path.join(RES, f'risk_calendar_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
 
 # Enterprise-level Markdown Report

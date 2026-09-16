@@ -42,13 +42,13 @@ def process_buoy(filename, prefix):
     return df_daily
 
 dfs = {}
-for buoy in ['송정_부이데이터.csv', '감천항_부이데이터.csv', '부산신항_부이데이터.csv', '부산항_부이데이터.csv']:
+for buoy in ['송정_부이데이터.csv', '감천항_부이데이터.csv', '부산신항_부이데이터.csv', '부산항_부이데이터.csv', '임랑해수욕장_부이데이터.csv', '해운대해수욕장_부이데이터.csv']:
     name = buoy.split('_')[0]
     print(f"Processing {name}...")
     dfs[name] = process_buoy(buoy, name)
 
 # 1. Dadaepo: Gamcheon + Busan New Port
-if dfs['감천항'] is not None and dfs['부산신항'] is not None:
+if dfs.get('감천항') is not None and dfs.get('부산신항') is not None:
     df_dadaepo = pd.merge(dfs['감천항'], dfs['부산신항'], on='date', how='outer')
     # 분리 적용: 평균(Mean) 파생 변수 생성을 제거하고, 각 항구별 원본 컬럼을 그대로 유지합니다.
     out_dir = os.path.join(BASE, 'Dadaepo_WaterQuality_Project', 'Data_Raw')
@@ -57,7 +57,7 @@ if dfs['감천항'] is not None and dfs['부산신항'] is not None:
     print("Saved Dadaepo")
 
 # 2. Songdo: Gamcheon + Busan Port
-if dfs['감천항'] is not None and dfs['부산항'] is not None:
+if dfs.get('감천항') is not None and dfs.get('부산항') is not None:
     df_songdo = pd.merge(dfs['감천항'], dfs['부산항'], on='date', how='outer')
     # 분리 적용: 평균(Mean) 파생 변수 생성을 제거하고, 각 항구별 원본 컬럼을 그대로 유지합니다.
     out_dir = os.path.join(BASE, 'Songdo_WaterQuality_Project', 'Data_Raw')
@@ -66,18 +66,46 @@ if dfs['감천항'] is not None and dfs['부산항'] is not None:
     print("Saved Songdo")
 
 # 3. Songjeong
-if dfs['송정'] is not None:
+if dfs.get('송정') is not None:
     out_dir = os.path.join(BASE, 'Songjeong_WaterQuality_Project', 'Data_Raw')
     os.makedirs(out_dir, exist_ok=True)
     dfs['송정'].to_csv(os.path.join(out_dir, '송정_부이데이터.csv'), index=False)
     print("Saved Songjeong")
 
 # 4. Gwangalli
-# Uses Haeundae + Busan Port, but Haeundae is missing. Using Busan Port.
-if dfs['부산항'] is not None:
+# Uses Haeundae + Busan Port
+if dfs.get('부산항') is not None and dfs.get('해운대해수욕장') is not None:
+    df_gwangalli = pd.merge(dfs['해운대해수욕장'], dfs['부산항'], on='date', how='outer')
+    out_dir = os.path.join(BASE, 'Gwangalli_WaterQuality_Project', 'Data_Raw')
+    os.makedirs(out_dir, exist_ok=True)
+    df_gwangalli.to_csv(os.path.join(out_dir, '광안리_부이데이터.csv'), index=False)
+    print("Saved Gwangalli")
+elif dfs.get('부산항') is not None:
     out_dir = os.path.join(BASE, 'Gwangalli_WaterQuality_Project', 'Data_Raw')
     os.makedirs(out_dir, exist_ok=True)
     dfs['부산항'].to_csv(os.path.join(out_dir, '광안리_부이데이터.csv'), index=False)
-    print("Saved Gwangalli")
+    print("Saved Gwangalli (Busan Port only)")
+
+# 5. Imrang
+if dfs.get('임랑해수욕장') is not None:
+    out_dir = os.path.join(BASE, 'Imrang_WaterQuality_Project', 'Data_Raw')
+    os.makedirs(out_dir, exist_ok=True)
+    dfs['임랑해수욕장'].to_csv(os.path.join(out_dir, '임랑_부이데이터.csv'), index=False)
+    print("Saved Imrang")
+
+# 6. Haeundae
+if dfs.get('해운대해수욕장') is not None:
+    out_dir = os.path.join(BASE, 'Haeundae_WaterQuality_Project', 'Data_Raw')
+    os.makedirs(out_dir, exist_ok=True)
+    dfs['해운대해수욕장'].to_csv(os.path.join(out_dir, '해운대_부이데이터.csv'), index=False)
+    print("Saved Haeundae")
+
+# 7. Ilgwang (Imrang + Songjeong)
+if dfs.get('임랑해수욕장') is not None and dfs.get('송정') is not None:
+    df_ilgwang = pd.merge(dfs['임랑해수욕장'], dfs['송정'], on='date', how='outer')
+    out_dir = os.path.join(BASE, 'Ilgwang_WaterQuality_Project', 'Data_Raw')
+    os.makedirs(out_dir, exist_ok=True)
+    df_ilgwang.to_csv(os.path.join(out_dir, '일광_부이데이터.csv'), index=False)
+    print("Saved Ilgwang")
 
 print("Done")

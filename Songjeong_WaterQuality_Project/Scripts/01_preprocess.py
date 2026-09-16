@@ -2,119 +2,120 @@
 import pandas as pd
 import numpy as np
 import os
-import warnings
-warnings.filterwarnings('ignore')
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(BASE, 'Data_Raw')
 PROC = os.path.join(BASE, 'Data_Processed')
 os.makedirs(PROC, exist_ok=True)
 
-BEACH = 'Songjeong'
+print("[Songjeong] Preprocessing data from 10 distinct category CSVs...")
 
-def clean_val(v):
-    if pd.isna(v): return np.nan
-    v_str = str(v).strip()
-    if '>' in v_str: v_str = v_str.replace('>', '')
-    if '<' in v_str: v_str = v_str.replace('<', '')
-    v_str = v_str.replace(',', '')
-    try: return float(v_str)
-    except: return np.nan
+def read_raw_csv(filename):
+    path = os.path.join(RAW, filename)
+    if not os.path.exists(path):
+        print(f"  Warning: {filename} not found. Returning empty dataframe.")
+        return pd.DataFrame(columns=['date'])
+    try:
+        df = pd.read_csv(path, encoding='utf-8-sig')
+    except:
+        df = pd.read_csv(path, encoding='cp949', errors='replace')
+    if 'date' in df.columns:
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        df = df.dropna(subset=['date'])
+    return df
 
-def assign_distance(loc):
-    loc_str = str(loc).upper().replace(' ', '')
-    # Arbitrary spatial assignment for Songjeong
-    if 'A' in loc_str or 'B' in loc_str or '369' in loc_str:
-        return 0.0 # South/West side (Closer to Suyeong)
-    elif 'D' in loc_str or 'E' in loc_str or '라온' in loc_str or 'LAON' in loc_str:
-        return 1.0 # North/East side (Closer to Gijang)
-    else:
-        return 0.5 # Middle
+# 1. Read all 10 files
+df_precip     = read_raw_csv('송정_강수.csv')
+df_temp       = read_raw_csv('송정_기온.csv')
+df_wind       = read_raw_csv('송정_바람.csv')
+df_uv         = read_raw_csv('송정_자외선.csv')
+df_sewage     = read_raw_csv('송정_인근_하수_방류량.csv')
+df_river      = read_raw_csv('송정_인근_하천_방류량.csv')
+df_visitor    = read_raw_csv('송정_방문객.csv')
+df_tide       = read_raw_csv('송정_조수.csv')
+df_water      = read_raw_csv('송정_수질.csv')
+df_buoy       = read_raw_csv('송정_부이데이터.csv')
 
-print(f"[{BEACH}] Preprocessing data...")
+# 2. Base: Water Quality
+if df_water.empty:
+    print("  Error: 송정_수질.csv is empty or missing.")
+    exit(1)
 
-# 1. Processing Water Quality Data
-print("  1. Loading water quality data...")
-f_water = os.path.join(RAW, 'water_quality_raw.csv')
-try:
-    df_w = pd.read_csv(f_water, encoding='utf-8')
-except:
-    df_w = pd.read_csv(f_water, encoding='cp949')
+master_df = df_water.copy()
 
-if 'examinDe' in df_w.columns:
-    df_w = df_w.dropna(subset=['examinDe'])
-    df_w['date'] = pd.to_datetime(df_w['examinDe'], errors='coerce')
-    df_w = df_w.dropna(subset=['date'])
-    df_w['ecoli'] = df_w['coliDetectCn'].apply(clean_val)
-    df_w = df_w.dropna(subset=['ecoli'])
-    df_w['any_exceed'] = (df_w['ecoli'] >= 500).astype(int)
-    df_w['distance_to_outfall'] = df_w['examinLcDetail'].apply(assign_distance)
-else:
-    raise ValueError("Unexpected water quality format")
+if 'ecoli_max' in master_df.columns:
+    master_df['ecoli_exceed']        = master_df['ecoli_max'] > 500
+    master_df['enterococcus_exceed'] = master_df.get('enterococcus_max', 0) > 100
+    master_df['any_exceed'] = (master_df['ecoli_exceed'] | master_df['enterococcus_exceed']).astype(int)
 
-df_w = df_w[['date', 'examinLcDetail', 'distance_to_outfall', 'ecoli', 'any_exceed']]
-print(f"     Records: {len(df_w)}, Exceed count: {df_w['any_exceed'].sum()}")
+def safe_merge(left, right):
+    if right.empty or len(right.columns) <= 1:
+        return left
+    return pd.merge(left, right, on='date', how='left')
 
-# 2. Processing Weather Data
-print("  2. Loading weather data...")
-df_wea_raw = pd.read_csv(os.path.join(RAW, 'weather_2014_2026.csv'), encoding='utf-8-sig')
-df_wea_raw['time'] = pd.to_datetime(df_wea_raw['time'])
-df_wea_raw['date'] = df_wea_raw['time'].dt.date
+# 3. Continuous daily timeline for lags
+min_date = master_df['date'].min()
+max_date = master_df['date'].max()
+feature_table = pd.DataFrame({'date': pd.date_range(start=min_date, end=max_date)})
 
-df_wea = df_wea_raw.groupby('date').agg({
-    'precipitation_mm': 'sum',
-    'temperature_2m': 'mean',
-    'wind_speed_m_s': 'mean',
-    'wind_direction_deg': 'mean'
-}).reset_index()
-df_wea['date'] = pd.to_datetime(df_wea['date'])
+feature_table = safe_merge(feature_table, df_precip)
+feature_table = safe_merge(feature_table, df_temp)
+feature_table = safe_merge(feature_table, df_wind)
+feature_table = safe_merge(feature_table, df_uv)
+feature_table = safe_merge(feature_table, df_sewage)
+feature_table = safe_merge(feature_table, df_river)
+feature_table = safe_merge(feature_table, df_visitor)
+feature_table = safe_merge(feature_table, df_tide)
+feature_table = safe_merge(feature_table, df_buoy)
 
-df_wea['precip_1d_lag'] = df_wea['precipitation_mm'].shift(1)
-df_wea['precip_3d_sum_lag'] = df_wea['precipitation_mm'].rolling(3).sum().shift(1)
-df_wea['precip_5d_sum_lag'] = df_wea['precipitation_mm'].rolling(5).sum().shift(1)
-df_wea['temp_1d_lag'] = df_wea['temperature_2m'].shift(1)
-df_wea['temp_daily'] = df_wea['temperature_2m']
-df_wea['wind_speed_1d_lag'] = df_wea['wind_speed_m_s'].shift(1)
-df_wea['wind_dir_1d_lag'] = df_wea['wind_direction_deg'].shift(1)
-df_wea['month'] = df_wea['date'].dt.month
-df_wea['is_summer'] = df_wea['month'].isin([7, 8]).astype(int)
+feature_table = feature_table.sort_values('date').reset_index(drop=True)
+feature_table['year']       = feature_table['date'].dt.year
+feature_table['month']      = feature_table['date'].dt.month
+feature_table['is_weekend'] = feature_table['date'].dt.dayofweek.isin([5, 6]).astype(int)
 
-# 3. Processing CSO Discharge Data
-print("  3. Processing CSO Discharge Data...")
-discharge_dir = os.path.join(RAW, 'Discharge')
-cso_files = ['수영사업단 일일방류량.csv', '기장사업소 (기장) 일일방류량.csv']
-df_cso_list = []
-for cso_file in cso_files:
-    cso_path = os.path.join(discharge_dir, cso_file)
-    if not os.path.exists(cso_path):
-        continue
-    df_c = pd.read_csv(cso_path, encoding='cp949', skiprows=1, header=None)
-    df_c = df_c.iloc[:, :2]
-    df_c.columns = ['date', 'discharge']
-    df_c = df_c.dropna(subset=['date'])
-    df_c['date'] = df_c['date'].astype(str).str.split(' ').str[0]
-    df_c = df_c[df_c['date'].str.strip() != '']
-    df_c['date'] = pd.to_datetime(df_c['date'], errors='coerce')
-    df_c = df_c.dropna(subset=['date'])
-    df_c['discharge'] = df_c['discharge'].apply(clean_val)
-    df_c = df_c.groupby('date')['discharge'].sum().reset_index()
-    cso_name = cso_file.split(' ')[0]
-    df_c = df_c.rename(columns={'discharge': f'{cso_name}_vol'})
-    df_c[f'{cso_name}_vol_1d_lag'] = df_c[f'{cso_name}_vol'].shift(1)
-    df_c[f'{cso_name}_vol_3d_sum_lag'] = df_c[f'{cso_name}_vol'].rolling(3).sum().shift(1)
-    df_cso_list.append(df_c)
+# 4. Feature Engineering
+if 'precip_daily' in feature_table.columns:
+    feature_table['precip_1d_lag']     = feature_table['precip_daily'].shift(1)
+    feature_table['precip_2d_sum_lag'] = feature_table['precip_daily'].rolling(2).sum().shift(1)
+    feature_table['precip_3d_sum_lag'] = feature_table['precip_daily'].rolling(3).sum().shift(1)
+    feature_table['precip_5d_sum_lag'] = feature_table['precip_daily'].rolling(5).sum().shift(1)
+    feature_table['CSO_Flag_Rain']     = (feature_table['precip_daily'] >= 3.0).astype(int)
+    feature_table['dry_days_count']    = (feature_table['precip_daily'] == 0).astype(int).groupby(
+        (feature_table['precip_daily'] > 0).cumsum()).cumsum()
 
-# 4. Merging Master Dataset
-print("  4. Merging datasets...")
-df_master = pd.merge(df_w, df_wea, on='date', how='left')
-for df_c in df_cso_list:
-    df_master = pd.merge(df_master, df_c, on='date', how='left')
+if 'temp_daily' in feature_table.columns:
+    feature_table['temp_1d_lag'] = feature_table['temp_daily'].shift(1)
 
-df_master = df_master.dropna(subset=['ecoli'])
-df_master['log_ecoli'] = np.log1p(df_master['ecoli'])
+if 'wind_max' in feature_table.columns:
+    feature_table['wind_max_1d_lag'] = feature_table['wind_max'].shift(1)
 
-out_path = os.path.join(PROC, "master_dataset.csv")
-df_master.to_csv(out_path, index=False, encoding='utf-8-sig')
-print(f"  Final master dataset: {df_master.shape}")
-print(f"  Saved: {out_path}")
-print(f"[{BEACH}] Preprocessing complete!")
+if 'solar_radiation_sum' in feature_table.columns:
+    feature_table['solar_radiation_1d_lag'] = feature_table['solar_radiation_sum'].shift(1)
+
+for col, prefix in [('dongbu_discharge_m3_day', 'dongbu'), ('haeundae_sewage_discharge_m3_day', 'haeundae_sewage')]:
+    if col in feature_table.columns:
+        feature_table[f'{prefix}_discharge_1d_lag']  = feature_table[col].shift(1)
+        feature_table[f'{prefix}_discharge_3d_mean'] = feature_table[col].rolling(3).mean().shift(1)
+
+if 'tide_max' in feature_table.columns and 'tide_min' in feature_table.columns:
+    feature_table['tide_range']       = feature_table['tide_max'] - feature_table['tide_min']
+    feature_table['tide_range_1d_lag'] = feature_table['tide_range'].shift(1)
+
+# Buoy lag features
+for c in list(feature_table.columns):
+    if '_1d_lag' not in c and c not in ('date', 'year', 'month', 'is_weekend'):
+        is_buoy = any(k in c for k in ['파고', '파주기', '수온', '풍속', '유속', '파향', '풍향'])
+        if is_buoy:
+            feature_table[f'{c}_1d_lag'] = feature_table[c].shift(1)
+
+# 5. Final Join
+master_df = pd.merge(master_df, feature_table, on='date', how='left')
+if 'ecoli_max' in master_df.columns:
+    master_df = master_df.dropna(subset=['ecoli_max'])
+
+out_path = os.path.join(PROC, 'master_dataset.csv')
+master_df.to_csv(out_path, index=False, encoding='utf-8-sig')
+
+print(f"Master dataset created with {len(master_df)} rows and {len(master_df.columns)} columns.")
+print(f"Saved to {out_path}")
+print("[Songjeong] Preprocessing complete!")

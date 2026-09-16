@@ -59,21 +59,111 @@ plt.rcParams['axes.facecolor'] = C_BG
 # Feature Translation Dictionary (Korean)
 # ---------------------------------------------------------
 feat_kor_map = {
+    # 기상 변수
+    'precip_daily': '당일 강수량',
     'precip_1d_lag': '1일 전 강수량',
     'precip_2d_sum_lag': '2일 누적 강수량',
     'precip_3d_sum_lag': '3일 누적 강수량',
+    'precip_5d_sum_lag': '5일 누적 강수량',
+    'temp_daily': '일평균 기온',
     'temp_1d_lag': '1일 전 기온',
+    'wind_max': '최대 풍속',
+    'wind_dir': '풍향',
     'wind_max_1d_lag': '1일 전 최대 풍속',
-    'discharge_1d_lag': '1일 전 하천 방류량',
-    'discharge_3d_sum_lag': '3일 누적 하천 방류량',
-    'sensor_turbidity_max_1d_lag': '1일 전 최대 탁도',
-    'sensor_salinity_min_1d_lag': '1일 전 최저 염도',
-    'sensor_temp_mean_1d_lag': '1일 전 평균 수온',
-    'visitor_count_1d_lag': '1일 전 방문객 수',
-    'distance_from_estuary_km': '하구로부터의 거리',
+    'solar_radiation_sum': '일사량',
+    'solar_radiation_1d_lag': '1일 전 일사량',
+    'CSO_Flag_Rain': '집중호우 여부(강수≥3mm)',
+    'dry_days_count': '연속 맑은 날 수',
+    'year': '연도',
+    'month': '월',
+    'is_weekend': '주말 여부',
+    # 하수처리 방류량
+    'sewage_discharge': '당일 하수 방류량',
     'sewage_discharge_1d_lag': '1일 전 하수 방류량',
     'sewage_discharge_3d_sum_lag': '3일 누적 하수 방류량',
-    'CSO_Flag': '월류수(CSO) 발생 여부'
+    'CSO_Flag': '월류수(CSO) 발생 여부',
+    'suyeong_vol': '수영사업단 당일 방류량',
+    'suyeong_vol_1d_lag': '수영사업단 1일 전 방류량',
+    'suyeong_cap': '수영사업단 처리 용량',
+    'CSO_Flag_East': '광안리 동측 CSO 여부',
+    'CSO_Flag_West': '광안리 서측 CSO 여부',
+    'CSO_Flag_Suyeong': '수영 CSO 여부',
+    'nambu_vol': '남부사업단 당일 방류량',
+    'nambu_vol_1d_lag': '남부사업단 1일 전 방류량',
+    'nambu_cap': '남부사업단 처리 용량',
+    # 하천 방류량
+    'river_discharge': '당일 하천 방류량',
+    'discharge_1d_lag': '1일 전 하천 방류량',
+    'discharge_3d_sum_lag': '3일 누적 하천 방류량',
+    # 조수
+    'tide_max': '조위 최고',
+    'tide_min': '조위 최저',
+    'tide_range': '조차(최고-최저)',
+    'tide_range_1d_lag': '1일 전 조차',
+    # 방문객
+    'visitor_count': '당일 방문객 수',
+    'visitor_count_1d_lag': '1일 전 방문객 수',
+    # 지리
+    'distance_to_outfall': '측정소까지 거리',
+    'distance_from_estuary_km': '하구까지의 거리',
+    # 부이 — 해운대해수욕장
+    '해운대해수욕장_수온(℃)': '해운대 부이 수온',
+    '해운대해수욕장_기온(℃)': '해운대 부이 기온',
+    '해운대해수욕장_기압(hPa)': '해운대 부이 기압',
+    '해운대해수욕장_풍속(m/s)': '해운대 부이 풍속',
+    '해운대해수욕장_풍향(deg)': '해운대 부이 풍향',
+    '해운대해수욕장_염분(PSU)': '해운대 부이 염분',
+    '해운대해수욕장_유의파고(m)': '해운대 부이 유의파고',
+    '해운대해수욕장_최대파고(m)': '해운대 부이 최대파고',
+    '해운대해수욕장_유속(cm/s)': '해운대 부이 유속',
+    '해운대해수욕장_유향(deg)': '해운대 부이 유향',
+    '해운대해수욕장_수온(℃)_1d_lag': '해운대 부이 수온 (1일 전)',
+    '해운대해수욕장_기온(℃)_1d_lag': '해운대 부이 기온 (1일 전)',
+    '해운대해수욕장_기압(hPa)_1d_lag': '해운대 부이 기압 (1일 전)',
+    '해운대해수욕장_풍속(m/s)_1d_lag': '해운대 부이 풍속 (1일 전)',
+    '해운대해수욕장_풍향(deg)_1d_lag': '해운대 부이 풍향 (1일 전)',
+    '해운대해수욕장_염분(PSU)_1d_lag': '해운대 부이 염분 (1일 전)',
+    '해운대해수욕장_유의파고(m)_1d_lag': '해운대 부이 유의파고 (1일 전)',
+    '해운대해수욕장_최대파고(m)_1d_lag': '해운대 부이 최대파고 (1일 전)',
+    '해운대해수욕장_유속(cm/s)_1d_lag': '해운대 부이 유속 (1일 전)',
+    '해운대해수욕장_유향(deg)_1d_lag': '해운대 부이 유향 (1일 전)',
+    # 부이 — 감천항
+    '감천항_수온(℃)': '감천항 부이 수온',
+    '감천항_기온(℃)': '감천항 부이 기온',
+    '감천항_풍속(m/s)': '감천항 부이 풍속',
+    '감천항_풍향(deg)': '감천항 부이 풍향',
+    '감천항_염분(PSU)': '감천항 부이 염분',
+    '감천항_유의파고(m)': '감천항 부이 유의파고',
+    '감천항_최대파고(m)': '감천항 부이 최대파고',
+    '감천항_유속(cm/s)': '감천항 부이 유속',
+    '감천항_유향(deg)': '감천항 부이 유향',
+    '감천항_수온(℃)_1d_lag': '감천항 부이 수온 (1일 전)',
+    '감천항_염분(PSU)_1d_lag': '감천항 부이 염분 (1일 전)',
+    '감천항_유의파고(m)_1d_lag': '감천항 부이 유의파고 (1일 전)',
+    '감천항_최대파고(m)_1d_lag': '감천항 부이 최대파고 (1일 전)',
+    '감천항_유속(cm/s)_1d_lag': '감천항 부이 유속 (1일 전)',
+    '감천항_유향(deg)_1d_lag': '감천항 부이 유향 (1일 전)',
+    # 부이 — 부산신항
+    '부산신항_수온(℃)': '부산신항 부이 수온',
+    '부산신항_염분(PSU)': '부산신항 부이 염분',
+    '부산신항_유의파고(m)': '부산신항 부이 유의파고',
+    '부산신항_최대파고(m)': '부산신항 부이 최대파고',
+    '부산신항_유속(cm/s)': '부산신항 부이 유속',
+    '부산신항_유향(deg)': '부산신항 부이 유향',
+    '부산신항_수온(℃)_1d_lag': '부산신항 부이 수온 (1일 전)',
+    '부산신항_염분(PSU)_1d_lag': '부산신항 부이 염분 (1일 전)',
+    '부산신항_유속(cm/s)_1d_lag': '부산신항 부이 유속 (1일 전)',
+    '부산신항_유향(deg)_1d_lag': '부산신항 부이 유향 (1일 전)',
+    # 부이 — 부산항
+    '부산항_수온(℃)': '부산항 부이 수온',
+    '부산항_염분(PSU)': '부산항 부이 염분',
+    '부산항_유속(cm/s)': '부산항 부이 유속',
+    '부산항_유향(deg)': '부산항 부이 유향',
+    '부산항_유의파고(m)': '부산항 부이 유의파고',
+    '부산항_최대파고(m)': '부산항 부이 최대파고',
+    '부산항_수온(℃)_1d_lag': '부산항 부이 수온 (1일 전)',
+    '부산항_유속(cm/s)_1d_lag': '부산항 부이 유속 (1일 전)',
+    '부산항_유향(deg)_1d_lag': '부산항 부이 유향 (1일 전)',
 }
 
 # Feature Importance Bar Chart
@@ -107,13 +197,22 @@ plt.close()
 # Categorized Donut Chart
 print("  Generating feature importance donut chart...")
 category_map = {
-    '기상 요인': ['precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'temp_1d_lag', 'wind_max_1d_lag'],
-    '하수처리 요인': ['sewage_discharge_1d_lag', 'sewage_discharge_3d_sum_lag', 'CSO_Flag'],
-    '수질센서 요인': ['sensor_turbidity_max_1d_lag', 'sensor_salinity_min_1d_lag', 'sensor_temp_mean_1d_lag'],
-    '강 방류 요인': ['discharge_1d_lag', 'discharge_3d_sum_lag'],
-    '기타 요인': ['visitor_count_1d_lag', 'distance_from_estuary_km']
+    '기상 요인': ['precip_daily', 'precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'precip_5d_sum_lag',
+                  'temp_daily', 'temp_1d_lag', 'wind_max', 'wind_max_1d_lag', 'wind_dir',
+                  'solar_radiation_sum', 'solar_radiation_1d_lag', 'CSO_Flag_Rain', 'month', 'year', 'is_weekend'],
+    '해양부이 요인': ['감천항_유속(cm/s)', '감천항_유향(deg)', '감천항_수온(℃)', '감천항_염분(PSU)',
+                     '감천항_유의파고(m)', '감천항_최대파고(m)',
+                     '감천항_유속(cm/s)_1d_lag', '감천항_유향(deg)_1d_lag', '감천항_수온(℃)_1d_lag',
+                     '감천항_염분(PSU)_1d_lag', '감천항_유의파고(m)_1d_lag', '감천항_최대파고(m)_1d_lag',
+                     '부산신항_유속(cm/s)', '부산신항_유향(deg)', '부산신항_수온(℃)', '부산신항_염분(PSU)',
+                     '부산신항_유속(cm/s)_1d_lag', '부산신항_유향(deg)_1d_lag',
+                     '부산신항_수온(℃)_1d_lag', '부산신항_염분(PSU)_1d_lag'],
+    '하수·하천 요인': ['sewage_discharge', 'sewage_discharge_1d_lag', 'sewage_discharge_3d_sum_lag',
+                      'CSO_Flag', 'river_discharge', 'discharge_1d_lag', 'discharge_3d_sum_lag'],
+    '조위·방문객 요인': ['tide_max', 'tide_min', 'tide_range', 'tide_range_1d_lag',
+                        'visitor_count', 'visitor_count_1d_lag', 'distance_to_outfall'],
 }
-cat_importances = {'기상 요인': 0, '하수처리 요인': 0, '수질센서 요인': 0, '강 방류 요인': 0, '기타 요인': 0}
+cat_importances = {'기상 요인': 0, '해양부이 요인': 0, '하수·하천 요인': 0, '조위·방문객 요인': 0}
 for feat, imp in zip(features, importances):
     for cat, feats in category_map.items():
         if feat in feats:
