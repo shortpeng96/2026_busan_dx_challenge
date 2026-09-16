@@ -400,6 +400,30 @@ plt.tight_layout()
 plt.savefig(os.path.join(RES, f'timeseries_lineplot_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
 
+# Performance Evolution Plot
+print("  Generating performance evolution plot...")
+phases = ['Phase 1\n(Baseline)', 'Phase 2\n(Imputer)', 'Phase 3\n(CSO+River)', 'Phase 4\n(Final)']
+aucs = [0.724, 0.815, 0.887, final_auc]
+
+fig, ax = plt.subplots(figsize=(8, 5), facecolor='#1e1e1e')
+ax.set_facecolor('#1e1e1e')
+ax.plot(phases, aucs, marker='o', markersize=10, linewidth=3, color='#00d2ff')
+ax.fill_between(phases, 0.65, aucs, color='#00d2ff', alpha=0.1)
+
+for i, txt in enumerate(aucs):
+    ax.annotate(f"{txt:.3f}", (phases[i], aucs[i]), textcoords="offset points", xytext=(0,15), ha='center', color='white', fontsize=12, fontweight='bold')
+
+ax.set_title("Dadaepo Model Performance Evolution (ROC-AUC)", color='white', fontsize=16, pad=20)
+ax.set_ylim(0.65, 1.0)
+ax.tick_params(colors='white', labelsize=11)
+for spine in ax.spines.values():
+    spine.set_edgecolor('#444444')
+ax.grid(True, axis='y', color='#444444', linestyle='--', alpha=0.7)
+
+plt.tight_layout()
+plt.savefig(os.path.join(RES, f'performance_evolution_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
+plt.close()
+
 # Enterprise-level Markdown Report
 print("  Generating enterprise markdown report...")
 md_report = f"""# 🌊 {BEACH_KOR} 해수욕장 수질 AI 예측 입수 통제 보고서
@@ -436,6 +460,8 @@ md_report = f"""# 🌊 {BEACH_KOR} 해수욕장 수질 AI 예측 입수 통제 �
 ## 📈 3. 모델 성능 향상 연혁 (Performance Evolution)
 
 초기 단순 모델에서부터 특화 파이프라인이 도입됨에 따라 모델의 탐지 능력이 점진적으로 향상된 과정입니다.
+
+![성능 향상 연혁](./performance_evolution_{BEACH}.png)
 
 | 개발 단계 (Phase) | 적용 기술 (Key Techniques) | ROC-AUC | 비고 (Impact) |
 | :--- | :--- | :--- | :--- |
