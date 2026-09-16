@@ -384,138 +384,34 @@ year_counts = df_plot['date'].dt.year.value_counts()
 best_year = year_counts.idxmax()
 df_year = df_plot[df_plot['date'].dt.year == best_year].copy()
 
-fig, ax1 = plt.subplots(figsize=(14, 6))
+df_melt = df_year.melt(id_vars=['date'], value_vars=['true_ecoli', 'pred_ecoli'], 
+                       var_name='Type', value_name='Concentration')
+df_melt['Type'] = df_melt['Type'].map({'true_ecoli': '실제 수치 (Actual)', 'pred_ecoli': 'AI 예측 (Predicted)'})
 
-# Left axis: actual ecoli concentration
-ax1.fill_between(df_year['date'], df_year['true_ecoli'], alpha=0.25, color=C_BLUE, label='실제 대장균 농도')
-ax1.plot(df_year['date'], df_year['true_ecoli'], color=C_BLUE, linewidth=2, label='실제 대장균 농도')
-ax1.set_xlabel('측정 일자', weight='bold', fontsize=12)
-ax1.set_ylabel('대장균 농도 (CFU/100mL)', color=C_BLUE, weight='bold', fontsize=12)
-ax1.tick_params(axis='y', labelcolor=C_BLUE)
-ax1.axhline(y=500, color=C_ORANGE, linestyle='--', linewidth=1.2, alpha=0.7, label='기준치 (500 CFU)')
+fig, ax = plt.subplots(figsize=(12, 6))
 
-# Right axis: AI predicted probability
-ax2 = ax1.twinx()
-ax2.fill_between(df_year['date'], df_year['y_pred'], alpha=0.2, color=C_ORANGE)
-ax2.plot(df_year['date'], df_year['y_pred'], color=C_ORANGE, linewidth=2.5, linestyle='--', label='AI 위험 확률')
-ax2.axhline(y=t_yellow, color='#FFC107', linestyle=':', linewidth=1.5, alpha=0.9, label=f'주의 기준 ({t_yellow:.2f})')
-ax2.axhline(y=t_red, color='red', linestyle=':', linewidth=1.5, alpha=0.9, label=f'위험 기준 ({t_red:.2f})')
-ax2.set_ylabel('AI 위험 확률 (0~1)', color=C_ORANGE, weight='bold', fontsize=12)
-ax2.tick_params(axis='y', labelcolor=C_ORANGE)
-ax2.set_ylim(0, 1)
+sns.lineplot(data=df_melt, x='date', y='Concentration', hue='Type', 
+             linewidth=2.5, palette=[C_TEXT, C_ORANGE], errorbar='ci', ax=ax)
+
+ax.set_title(f'{BEACH_KOR} 해수욕장 - 실제 수질 vs AI 예측 트렌드 ({best_year}년)', color=C_NAVY, weight='bold', fontsize=16)
+ax.set_xlabel('측정 일자 (Date)', weight='bold', fontsize=12)
+ax.set_ylabel('대장균 농도 (E.coli)', weight='bold', fontsize=12)
 
 import matplotlib.dates as mdates
-ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m월 %d일'))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%m월 %d일'))
 plt.xticks(rotation=45)
-ax1.xaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
 
-# Combined legend
-lines1, labels1 = ax1.get_legend_handles_labels()
-lines2, labels2 = ax2.get_legend_handles_labels()
-ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right', frameon=True, fontsize=9)
+ax.xaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
+ax.yaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.legend(loc='upper right', frameon=True)
 
-ax1.spines['top'].set_visible(False)
-ax2.spines['top'].set_visible(False)
-
-fig.patch.set_facecolor(C_BG)
-ax1.set_facecolor(C_BG)
-ax2.set_facecolor(C_BG)
-
-ax1.set_title(f'{BEACH_KOR} 해수욕장 - 실제 수질 vs AI 위험 확률 ({best_year}년)', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
 plt.savefig(os.path.join(RES, f'timeseries_lineplot_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
 
-# ── 새 차트1: 예측 점수 버블 차트 ─────────────────────────────────────────
-print("  Generating prediction bubble chart...")
-df_bubble = pred_df.copy()
-df_bubble['date'] = pd.to_datetime(df_bubble['date'])
-df_bubble = df_bubble.sort_values('date').reset_index(drop=True)
-df_bubble['idx'] = range(len(df_bubble))
-df_bubble['label_kor'] = df_bubble['y_true'].map({0: '정상 (기준 이하)', 1: '오염 (기준 초과)'})
 
-fig, ax = plt.subplots(figsize=(14, 6))
-normal_mask  = df_bubble['y_true'] == 0
-positive_mask = df_bubble['y_true'] == 1
-
-ax.scatter(df_bubble.loc[normal_mask, 'idx'], df_bubble.loc[normal_mask, 'y_pred'],
-           c=C_BLUE, alpha=0.6, s=60, label='정상 수질일', zorder=3, edgecolors='white', linewidth=0.5)
-ax.scatter(df_bubble.loc[positive_mask, 'idx'], df_bubble.loc[positive_mask, 'y_pred'],
-           c='#E63946', alpha=0.9, s=180, marker='D', label='실제 오염일', zorder=5, edgecolors='white', linewidth=1)
-
-ax.axhline(y=t_yellow, color=C_WARN, linestyle='--', lw=2, label=f'주의 기준 ({t_yellow:.2f})')
-ax.axhline(y=t_red,    color='#E63946', linestyle=':', lw=2, label=f'위험 기준 ({t_red:.2f})')
-
-ax.set_yscale('log')
-ax.set_ylim(max(df_bubble['y_pred'].min() * 0.1, 1e-9), 1.5)
-ax.set_ylabel('AI 예측 위험 확률 (로그 스케일)', weight='bold', fontsize=12)
-ax.set_xlabel('측정 일자 (시간 순)', weight='bold', fontsize=12)
-ax.set_title(f'{BEACH_KOR} 해수욕장 - 전체 측정일 예측 점수 vs 실제 라벨', color=C_NAVY, weight='bold', fontsize=16)
-
-# x축 도메인 연도 레이블
-year_ticks = df_bubble.groupby(df_bubble['date'].dt.year)['idx'].first()
-ax.set_xticks(year_ticks.values)
-ax.set_xticklabels([f'{y}년' for y in year_ticks.index], fontsize=10)
-
-for _, row in df_bubble[positive_mask].iterrows():
-    ax.annotate(f"{row['date'].strftime('%m/%d')}",
-                (row['idx'], row['y_pred']),
-                textcoords='offset points', xytext=(4, 4),
-                fontsize=7, color='#E63946', alpha=0.8)
-
-ax.xaxis.grid(True, linestyle='--', alpha=0.4, color='#adb5bd')
-ax.yaxis.grid(True, linestyle='--', alpha=0.4, color='#adb5bd')
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-ax.legend(fontsize=10, loc='upper right', frameon=True)
-fig.patch.set_facecolor(C_BG)
-ax.set_facecolor(C_BG)
-plt.tight_layout()
-plt.savefig(os.path.join(RES, f'prediction_bubble_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
-plt.close()
-
-# ── 새 차트2: 월별 위험도 히트맵 ─────────────────────────────────────────
-print("  Generating risk calendar heatmap...")
-df_cal = pred_df.copy()
-df_cal['date'] = pd.to_datetime(df_cal['date'])
-df_cal['year']  = df_cal['date'].dt.year
-df_cal['month'] = df_cal['date'].dt.month
-
-# 월별 최대 예측 점수 (pivot)
-cal_pred = df_cal.groupby(['year','month'])['y_pred'].max().reset_index()
-cal_pred_pivot = cal_pred.pivot(index='year', columns='month', values='y_pred')
-
-# 오염 발생 월 (y_true=1 존재)
-cal_contaminated = df_cal[df_cal['y_true']==1].groupby(['year','month']).size().reset_index(name='cnt')
-
-fig, ax = plt.subplots(figsize=(13, max(4, len(cal_pred_pivot) * 0.7 + 1.5)))
-import matplotlib.colors as mcolors
-cmap_risk = mcolors.LinearSegmentedColormap.from_list('risk',
-    ['#eaf4fb', '#a8d4f5', '#f9c74f', '#f3722c', '#e63946'])
-
-sns.heatmap(cal_pred_pivot, ax=ax, cmap=cmap_risk, vmin=0, vmax=1,
-            linewidths=0.5, linecolor='#ccc', annot=True, fmt='.2f',
-            annot_kws={'size': 9, 'weight': 'bold'},
-            cbar_kws={'label': 'AI 위험도 점수 (0=저위험 / 1=고위험)'})
-
-month_labels = [f'{i}월' for i in range(1, 13)]
-ax.set_xticklabels([month_labels[int(c)-1] for c in cal_pred_pivot.columns], fontsize=10)
-ax.set_yticklabels([str(y) + '년' for y in cal_pred_pivot.index], fontsize=10, rotation=0)
-ax.set_xlabel('')
-ax.set_ylabel('')
-
-# 오염 발생 월에 색 테두리
-for _, row in cal_contaminated.iterrows():
-    if row['year'] in cal_pred_pivot.index and row['month'] in cal_pred_pivot.columns:
-        r = list(cal_pred_pivot.index).index(row['year'])
-        c = list(cal_pred_pivot.columns).index(row['month'])
-        ax.add_patch(plt.Rectangle((c, r), 1, 1, fill=False, edgecolor='#e63946', lw=3, zorder=5))
-        ax.text(c + 0.5, r + 0.15, '❌', ha='center', fontsize=10, color='#e63946', zorder=6)
-
-ax.set_title(f'{BEACH_KOR} 해수욕장 - AI 월별 위험도 달력 (❌ = 실제 오염 발생)', color=C_NAVY, weight='bold', fontsize=15)
-plt.tight_layout()
-plt.savefig(os.path.join(RES, f'risk_calendar_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
-plt.close()
 
 # Performance Evolution Plot
 print("  Generating performance evolution plot...")

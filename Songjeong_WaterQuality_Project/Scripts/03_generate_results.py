@@ -401,43 +401,29 @@ year_counts = df_plot['date'].dt.year.value_counts()
 best_year = year_counts.idxmax()
 df_year = df_plot[df_plot['date'].dt.year == best_year].copy()
 
-fig, ax1 = plt.subplots(figsize=(14, 6))
+df_melt = df_year.melt(id_vars=['date'], value_vars=['true_ecoli', 'pred_ecoli'], 
+                       var_name='Type', value_name='Concentration')
+df_melt['Type'] = df_melt['Type'].map({'true_ecoli': '실제 수치 (Actual)', 'pred_ecoli': 'AI 예측 (Predicted)'})
 
-# Left axis: actual ecoli concentration
-ax1.fill_between(df_year['date'], df_year['true_ecoli'], alpha=0.25, color=C_BLUE, label='실제 대장균 농도')
-ax1.plot(df_year['date'], df_year['true_ecoli'], color=C_BLUE, linewidth=2, label='실제 대장균 농도')
-ax1.set_xlabel('측정 일자', weight='bold', fontsize=12)
-ax1.set_ylabel('대장균 농도 (CFU/100mL)', color=C_BLUE, weight='bold', fontsize=12)
-ax1.tick_params(axis='y', labelcolor=C_BLUE)
-ax1.axhline(y=500, color=C_ORANGE, linestyle='--', linewidth=1.2, alpha=0.7, label='기준치 (500 CFU)')
+fig, ax = plt.subplots(figsize=(12, 6))
 
-# Right axis: AI predicted probability
-ax2 = ax1.twinx()
-ax2.fill_between(df_year['date'], df_year['y_pred'], alpha=0.2, color=C_ORANGE)
-ax2.plot(df_year['date'], df_year['y_pred'], color=C_ORANGE, linewidth=2.5, linestyle='--', label='AI 위험 확률')
-ax2.axhline(y=t_yellow, color='#FFC107', linestyle=':', linewidth=1.5, alpha=0.9, label=f'주의 기준 ({t_yellow:.2f})')
-ax2.axhline(y=t_red, color='red', linestyle=':', linewidth=1.5, alpha=0.9, label=f'위험 기준 ({t_red:.2f})')
-ax2.set_ylabel('AI 위험 확률 (0~1)', color=C_ORANGE, weight='bold', fontsize=12)
-ax2.tick_params(axis='y', labelcolor=C_ORANGE)
-ax2.set_ylim(0, 1)
+sns.lineplot(data=df_melt, x='date', y='Concentration', hue='Type', 
+             linewidth=2.5, palette=[C_TEXT, C_ORANGE], errorbar='ci', ax=ax)
+
+ax.set_title(f'{BEACH_KOR} 해수욕장 - 실제 수질 vs AI 예측 트렌드 ({best_year}년)', color=C_NAVY, weight='bold', fontsize=16)
+ax.set_xlabel('측정 일자 (Date)', weight='bold', fontsize=12)
+ax.set_ylabel('대장균 농도 (E.coli)', weight='bold', fontsize=12)
 
 import matplotlib.dates as mdates
-ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m월 %d일'))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%m월 %d일'))
 plt.xticks(rotation=45)
-ax1.xaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
 
-lines1, labels1 = ax1.get_legend_handles_labels()
-lines2, labels2 = ax2.get_legend_handles_labels()
-ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right', frameon=True, fontsize=9)
+ax.xaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
+ax.yaxis.grid(True, linestyle='--', alpha=0.5, color='#adb5bd')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.legend(loc='upper right', frameon=True)
 
-ax1.spines['top'].set_visible(False)
-ax2.spines['top'].set_visible(False)
-
-fig.patch.set_facecolor(C_BG)
-ax1.set_facecolor(C_BG)
-ax2.set_facecolor(C_BG)
-
-ax1.set_title(f'{BEACH_KOR} 해수욕장 - 실제 수질 vs AI 위험 확률 ({best_year}년)', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
 plt.savefig(os.path.join(RES, f'timeseries_lineplot_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
 plt.close()
