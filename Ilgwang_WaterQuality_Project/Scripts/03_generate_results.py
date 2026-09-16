@@ -183,25 +183,33 @@ plt.close()
 
 # Categorized Donut Chart
 print("  Generating feature importance donut chart...")
-category_map = {
-    '기상 요인': ['precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'temp_1d_lag', 'wind_max_1d_lag'],
-    '하수처리 요인': ['sewage_discharge_1d_lag', 'sewage_discharge_3d_sum_lag', 'CSO_Flag'],
-    '수질센서 요인': ['sensor_turbidity_max_1d_lag', 'sensor_salinity_min_1d_lag', 'sensor_temp_mean_1d_lag'],
-    '강 방류 요인': ['discharge_1d_lag', 'discharge_3d_sum_lag'],
-    '기타 요인': ['visitor_count_1d_lag', 'distance_from_estuary_km']
+cat_importances = {
+    '기상 및 강우 요인': 0, 
+    '지역 하천 및 하수 유입': 0, 
+    '해양 파랑 및 수온(부이)': 0, 
+    '조위(조석) 요인': 0, 
+    '시간 및 기타 특성': 0
 }
-cat_importances = {'기상 요인': 0, '하수처리 요인': 0, '수질센서 요인': 0, '강 방류 요인': 0, '기타 요인': 0}
+
 for feat, imp in zip(features, importances):
-    for cat, feats in category_map.items():
-        if feat in feats:
-            cat_importances[cat] += imp
-            break
+    kor_name = feat_kor_map.get(feat, feat)
+    
+    if any(k in kor_name for k in ['부이', '파고', '파주기', '수온', '염분', '유속', '유향', '해수']):
+        cat_importances['해양 파랑 및 수온(부이)'] += imp
+    elif any(k in kor_name for k in ['강수', '비', '기온', '풍속', '풍향', '바람', '일사량', '건조', '기압']):
+        cat_importances['기상 및 강우 요인'] += imp
+    elif any(k in kor_name for k in ['방류', '하천', '하수', '월류', 'CSO']):
+        cat_importances['지역 하천 및 하수 유입'] += imp
+    elif any(k in kor_name for k in ['조위', '만조', '간조']):
+        cat_importances['조위(조석) 요인'] += imp
+    else:
+        cat_importances['시간 및 기타 특성'] += imp
 
 cat_series = pd.Series(cat_importances)
 cat_series = cat_series[cat_series > 0].sort_values(ascending=False)
 
 fig, ax = plt.subplots(figsize=(9, 7))
-colors_donut = [C_NAVY, C_BLUE, C_ORANGE, '#6c757d', '#adb5bd']
+colors_donut = [C_NAVY, C_BLUE, C_ORANGE, '#6c757d', '#adb5bd'][:len(cat_series)]
 
 # Use pctdistance to push numbers into the donut ring, hide labels outside, set text color and size
 wedges, texts, autotexts = ax.pie(cat_series, labels=None, autopct='%1.1f%%', pctdistance=0.75,

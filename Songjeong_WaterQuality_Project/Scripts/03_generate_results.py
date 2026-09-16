@@ -218,41 +218,35 @@ plt.close()
 
 # Categorized Donut Chart
 print("  Generating feature importance donut chart...")
-category_map = {
-    '기상 요인': ['precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'precip_5d_sum_lag', 'precip_daily',
-                  'temp_1d_lag', 'temp_daily', 'wind_max', 'wind_max_1d_lag', 'wind_dir', 'solar_radiation_sum', 'solar_radiation_1d_lag',
-                  'CSO_Flag_Rain', 'dry_days_count', 'month', 'year', 'is_weekend'],
-    '해양부이 요인': ['송정_수온(℃)', '송정_기온(℃)', '송정_풍속(m/s)', '송정_풍향(deg)',
-                     '송정_염분(PSU)', '송정_유의파고(m)', '송정_최대파고(m)',
-                     '송정_유의파주기(sec)', '송정_최대파주기(sec)',
-                     '송정_유속(cm/s)', '송정_유향(deg)',
-                     '송정_수온(℃)_1d_lag', '송정_기온(℃)_1d_lag', '송정_풍속(m/s)_1d_lag', '송정_풍향(deg)_1d_lag',
-                     '송정_염분(PSU)_1d_lag', '송정_유의파고(m)_1d_lag', '송정_최대파고(m)_1d_lag',
-                     '송정_유의파주기(sec)_1d_lag', '송정_최대파주기(sec)_1d_lag',
-                     '송정_유속(cm/s)_1d_lag', '송정_유향(deg)_1d_lag'],
-    '하수처리 요인': ['dongbu_discharge_m3_day', 'dongbu_discharge_1d_lag', 'dongbu_discharge_3d_mean',
-                     'haeundae_sewage_discharge_m3_day', 'haeundae_sewage_discharge_1d_lag', 'haeundae_sewage_discharge_3d_mean',
-                     'sewage_discharge_1d_lag', 'sewage_discharge_3d_sum_lag', 'CSO_Flag'],
-    '조위·수온 요인': ['tide_max', 'tide_min', 'tide_range', 'tide_range_1d_lag', 'avg_water_temp', 'avg_water_temp_1d_lag'],
+cat_importances = {
+    '기상 및 강우 요인': 0, 
+    '지역 하천 및 하수 유입': 0, 
+    '해양 파랑 및 수온(부이)': 0, 
+    '조위(조석) 요인': 0, 
+    '시간 및 기타 특성': 0
 }
-cat_importances = {'기상 요인': 0, '해양부이 요인': 0, '하수처리 요인': 0, '조위·수온 요인': 0}
+
 for feat, imp in zip(features, importances):
-    found = False
-    for cat, feats in category_map.items():
-        if feat in feats:
-            cat_importances[cat] += imp
-            found = True
-            break
-    if not found:
-        cat_importances['기상 요인'] += imp
+    kor_name = feat_kor_map.get(feat, feat)
+    
+    if any(k in kor_name for k in ['부이', '파고', '파주기', '수온', '염분', '유속', '유향', '해수']):
+        cat_importances['해양 파랑 및 수온(부이)'] += imp
+    elif any(k in kor_name for k in ['강수', '비', '기온', '풍속', '풍향', '바람', '일사량', '건조', '기압']):
+        cat_importances['기상 및 강우 요인'] += imp
+    elif any(k in kor_name for k in ['방류', '하천', '하수', '월류', 'CSO']):
+        cat_importances['지역 하천 및 하수 유입'] += imp
+    elif any(k in kor_name for k in ['조위', '만조', '간조']):
+        cat_importances['조위(조석) 요인'] += imp
+    else:
+        cat_importances['시간 및 기타 특성'] += imp
 
 cat_series = pd.Series(cat_importances)
 cat_series = cat_series[cat_series > 0].sort_values(ascending=False)
 
 fig, ax = plt.subplots(figsize=(9, 7))
-colors_donut = [C_NAVY, C_BLUE, C_ORANGE, '#6c757d', '#adb5bd']
+colors_donut = [C_NAVY, C_BLUE, C_ORANGE, '#6c757d', '#adb5bd'][:len(cat_series)]
 
-
+# Use pctdistance to push numbers into the donut ring, hide labels outside, set text color and size
 wedges, texts, autotexts = ax.pie(cat_series, labels=None, autopct='%1.1f%%', pctdistance=0.75,
                                   startangle=90, colors=colors_donut, wedgeprops=dict(width=0.4, edgecolor='w'))
 

@@ -204,32 +204,35 @@ plt.close()
 
 # Categorized Donut Chart
 print("  Generating feature importance donut chart...")
-category_map = {
-    '기상 요인': ['precip_daily', 'precip_1d_lag', 'precip_2d_sum_lag', 'precip_3d_sum_lag', 'precip_5d_sum_lag',
-                  'temp_daily', 'temp_1d_lag', 'wind_max', 'wind_max_1d_lag', 'wind_dir',
-                  'solar_radiation_sum', 'solar_radiation_1d_lag', 'month', 'year', 'is_weekend'],
-    '해양부이 요인': ['해운대해수욕장_유속(cm/s)', '해운대해수욕장_유향(deg)', '해운대해수욕장_수온(℃)',
-                     '해운대해수욕장_염분(PSU)', '해운대해수욕장_유의파고(m)', '해운대해수욕장_최대파고(m)',
-                     '해운대해수욕장_풍속(m/s)', '해운대해수욕장_풍향(deg)', '해운대해수욕장_기온(℃)', '해운대해수욕장_기압(hPa)',
-                     '부산항_유속(cm/s)', '부산항_유향(deg)', '부산항_수온(℃)', '부산항_염분(PSU)'],
-    '하수처리 요인': ['suyeong_vol', 'suyeong_vol_1d_lag', 'suyeong_cap', 'CSO_Flag_East',
-                     'nambu_vol', 'nambu_vol_1d_lag', 'nambu_cap', 'CSO_Flag_West'],
-    '조위·방문객 요인': ['tide_max', 'tide_min', 'tide_range', 'tide_range_1d_lag',
-                        'visitor_count', 'visitor_count_1d_lag'],
+cat_importances = {
+    '기상 및 강우 요인': 0, 
+    '지역 하천 및 하수 유입': 0, 
+    '해양 파랑 및 수온(부이)': 0, 
+    '조위(조석) 요인': 0, 
+    '시간 및 기타 특성': 0
 }
-cat_importances = {'기상 요인': 0, '해양부이 요인': 0, '하수처리 요인': 0, '조위·방문객 요인': 0}
+
 for feat, imp in zip(features, importances):
-    for cat, feats in category_map.items():
-        if feat in feats:
-            cat_importances[cat] += imp
-            break
+    kor_name = feat_kor_map.get(feat, feat)
+    
+    if any(k in kor_name for k in ['부이', '파고', '파주기', '수온', '염분', '유속', '유향', '해수']):
+        cat_importances['해양 파랑 및 수온(부이)'] += imp
+    elif any(k in kor_name for k in ['강수', '비', '기온', '풍속', '풍향', '바람', '일사량', '건조', '기압']):
+        cat_importances['기상 및 강우 요인'] += imp
+    elif any(k in kor_name for k in ['방류', '하천', '하수', '월류', 'CSO']):
+        cat_importances['지역 하천 및 하수 유입'] += imp
+    elif any(k in kor_name for k in ['조위', '만조', '간조']):
+        cat_importances['조위(조석) 요인'] += imp
+    else:
+        cat_importances['시간 및 기타 특성'] += imp
 
 cat_series = pd.Series(cat_importances)
 cat_series = cat_series[cat_series > 0].sort_values(ascending=False)
 
 fig, ax = plt.subplots(figsize=(9, 7))
-colors_donut = [C_NAVY, C_BLUE, C_ORANGE, '#6c757d', '#adb5bd']
+colors_donut = [C_NAVY, C_BLUE, C_ORANGE, '#6c757d', '#adb5bd'][:len(cat_series)]
 
+# Use pctdistance to push numbers into the donut ring, hide labels outside, set text color and size
 wedges, texts, autotexts = ax.pie(cat_series, labels=None, autopct='%1.1f%%', pctdistance=0.75,
                                   startangle=90, colors=colors_donut, wedgeprops=dict(width=0.4, edgecolor='w'))
 
