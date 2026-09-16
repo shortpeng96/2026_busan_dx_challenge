@@ -77,7 +77,9 @@ feature_table = safe_merge(feature_table, df_precip)
 feature_table = safe_merge(feature_table, df_temp)
 feature_table = safe_merge(feature_table, df_wind)
 feature_table = safe_merge(feature_table, df_uv)
-if 'sewage_discharge' in df_sewage.columns:
+if 'suyeong_sewage_discharge_m3_day' in df_sewage.columns:
+    df_sewage = df_sewage.rename(columns={'suyeong_sewage_discharge_m3_day': 'suyeong_vol'})
+elif 'sewage_discharge' in df_sewage.columns:
     df_sewage = df_sewage.rename(columns={'sewage_discharge': 'suyeong_vol'})
 
 feature_table = safe_merge(feature_table, df_sewage)
