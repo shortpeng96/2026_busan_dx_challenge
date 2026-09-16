@@ -406,19 +406,43 @@ md_report = f"""# 🌊 {BEACH_KOR} 해수욕장 수질 AI 예측 입수 통제 �
 
 > [!TIP]
 > **Executive Summary**
-> 본 보고서는 {BEACH_KOR} 해수욕장의 수질 오염(대장균/장구균 초과)을 예측하기 위한 AI 모델의 최종 성능 및 운영 기준을 요약한 기업용 엔터프라이즈 리포트입니다.
+> 본 보고서는 {BEACH_KOR} 해수욕장의 수질 오염(대장균/장구균 초과)을 예측하기 위한 AI 모델의 최종 성능 및 특화 파이프라인을 요약한 기업용 엔터프라이즈 리포트입니다.
 
 ## 📌 1. 최종 모델 성능 (Model Performance)
 
 | 지표 (Metrics) | 결과 (Result) | 비고 (Note) |
 | :--- | :--- | :--- |
-| **ROC-AUC** | **{final_auc:.3f}** | 5-fold CV, XGBoost Regressor |
+| **ROC-AUC** | **{final_auc:.3f}** | 5-fold CV, 하이브리드 모델 |
 | **학습 데이터** | **{len(y_true)}건** | 수질 검사 기록 총량 |
 | **오염 발생 빈도** | **{int(y_true.sum())}건** | 대장균/장구균 기준치 초과 사례 |
 
 ---
 
-## 🎯 2. 이중 기준선 운영 시스템 (Dual-Threshold System)
+## 🏗️ 2. 다대포 특화 데이터 파이프라인 (Data Pipeline)
+
+### 2.1 결측치 머신러닝 복원 (IterativeImputer)
+- 다대포는 낙동강 하구 환경센서(수온, 염도, 탁도) 데이터를 활용합니다. 하지만 **결측치가 다수 존재하여 단순 삭제 시 소중한 수질 검사 데이터를 크게 손실**하는 문제가 있었습니다.
+- 이를 해결하기 위해 `RandomForestRegressor` 기반의 다중 대치법(`IterativeImputer`)을 도입하여, 강수량/방류량 등 다른 멀쩡한 변수들의 패턴을 학습해 **결측된 센서 데이터를 정밀하게 추정하여 100% 온전한 마스터 데이터셋을 구축**했습니다.
+
+### 2.2 합류식 하수관거 월류수 (CSO) 플래그 생성
+- 단순히 하수 방류량 수치만 본 것이 아니라, **비가 많이 와서 하수처리장이 감당하지 못하고 오폐수를 그대로 바다로 흘려보내는 상황(CSO)** 을 수치화했습니다.
+- `조건`: 전일 하수 방류량 급증(45만 톤 이상) + 3일 누적 강수량 5.0mm 이상 시 `CSO_Flag = 1` 로 활성화하여 모델이 극단적인 오염 이벤트를 쉽게 학습하도록 피처 엔지니어링을 수행했습니다.
+
+### 2.3 낙동강 하굿둑 방류량 (River Discharge)
+- 다대포 해수욕장은 낙동강 하구에 위치하여 **하굿둑 방류(수문 개방) 시 다량의 담수와 육상 기원 부유물이 유입**되어 수질에 지대한 영향을 미칩니다. K-water 데이터를 연동하여 하굿둑 방류량 및 3일 누적 방류량을 핵심 변수로 활용했습니다.
+
+---
+
+## 🧠 3. 하이브리드 예측 모델 (Dual-Output Regressor)
+
+- 단순히 '오염/정상'을 분류(Classifier)하는 모델이 아닙니다.
+- 다대포 모델은 **대장균(E.coli)과 장구균(Enterococcus) 농도를 동시에 예측(Dual-Output XGBRegressor)하는 연속형 수치 예측 모델**입니다.
+- 예측된 두 농도 값을 각각의 통제 기준치(대장균 500, 장구균 100)로 나누어 **가장 위험한 비율을 최종 '위험도 점수(0~1 이상)'로 환산**하는 하이브리드 아키텍처를 채택했습니다.
+- **공식**: `최종 위험도 = max(예측 대장균 농도 / 500, 예측 장구균 농도 / 100)`
+
+---
+
+## 🎯 4. 이중 기준선 운영 시스템 (Dual-Threshold System)
 
 AI 모델은 오염 피해를 선제적으로 차단하기 위해 2단계의 경보 시스템을 가동합니다.
 
@@ -436,35 +460,37 @@ AI 모델은 오염 피해를 선제적으로 차단하기 위해 2단계의 경
 
 ---
 
-## 📊 3. 시각화 분석 (Data Visualization)
+## 📊 5. 시각화 분석 (Data Visualization)
 
-### 3.1 카테고리별 오염 기여도 분석
+### 5.1 카테고리별 오염 기여도 분석
 ![카테고리별 오염 기여도](./feature_importance_donut_{BEACH}.png)
 
-### 3.2 핵심 변수 15종 세부 중요도
+### 5.2 핵심 변수 15종 세부 중요도
 ![세부 중요도](./feature_importance_{BEACH}.png)
 
-### 3.3 정상/오염 예측 점수 분포도 (Log Scale)
+### 5.3 정상/오염 예측 점수 분포도 (Log Scale)
 ![점수 분포도](./dual_warning_kde_{BEACH}.png)
 
-### 3.4 이중 기준선 혼동 행렬 (Confusion Matrix)
+### 5.4 이중 기준선 혼동 행렬 (Confusion Matrix)
 ![혼동 행렬](./confusion_matrix_{BEACH}.png)
 
-### 3.5 오탐(FP) 방어 비교 분석
+### 5.5 오탐(FP) 방어 비교 분석
 ![오탐 비교](./roi_comparison_{BEACH}.png)
 
-### 3.6 실제 수질 vs AI 예측 트렌드 (시계열)
+### 5.6 실제 수질 vs AI 예측 트렌드 (시계열)
 ![시계열 트렌드](./timeseries_lineplot_{BEACH}.png)
 
 ---
 *보고서 생성일: 시스템 자동 생성*
 """
-with open(os.path.join(RES, f'results_{BEACH}.md'), 'w', encoding='utf-8') as f:
+with open(os.path.join(RES, f'analysis_report_{BEACH}.md'), 'w', encoding='utf-8') as f:
     f.write(md_report)
 
-# Delete old txt file if it exists
+# Delete old versions
 old_txt = os.path.join(RES, f'results_{BEACH}.txt')
-if os.path.exists(old_txt):
-    os.remove(old_txt)
+old_md = os.path.join(RES, f'results_{BEACH}.md')
+for old_file in [old_txt, old_md]:
+    if os.path.exists(old_file):
+        os.remove(old_file)
 
 print(f"[{BEACH}] All results generated!")
