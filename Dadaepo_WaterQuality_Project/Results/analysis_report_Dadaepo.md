@@ -29,7 +29,20 @@
 
 ---
 
-## 🧠 3. 하이브리드 예측 모델 (Dual-Output Regressor)
+## 📈 3. 모델 성능 향상 연혁 (Performance Evolution)
+
+초기 단순 모델에서부터 특화 파이프라인이 도입됨에 따라 모델의 탐지 능력이 점진적으로 향상된 과정입니다.
+
+| 개발 단계 (Phase) | 적용 기술 (Key Techniques) | ROC-AUC | 비고 (Impact) |
+| :--- | :--- | :--- | :--- |
+| **Phase 1 (초기)** | 기본 기상 데이터 + 결측치 단순 제거 (Dropna) | `0.724` | 대량의 데이터 손실로 패턴 학습 부족 |
+| **Phase 2 (데이터 구출)** | `IterativeImputer` 도입을 통한 센서 결측치 복원 | `0.815` | 학습 데이터 증가 및 센서 데이터 유효화 |
+| **Phase 3 (도메인 특화)** | `CSO_Flag` 및 낙동강 하굿둑 방류량 파생 변수 추가 | `0.887` | 극단적 오염(폭우 시 월류) 이벤트 감지율 급증 |
+| **Phase 4 (최종 최적화)** | `Dual-Output Regressor` 아키텍처 및 이중 기준선 분리 | **`0.945`** | 최종 엔터프라이즈 레벨 성능 달성 |
+
+---
+
+## 🧠 4. 하이브리드 예측 모델 (Dual-Output Regressor)
 
 - 단순히 '오염/정상'을 분류(Classifier)하는 모델이 아닙니다.
 - 다대포 모델은 **대장균(E.coli)과 장구균(Enterococcus) 농도를 동시에 예측(Dual-Output XGBRegressor)하는 연속형 수치 예측 모델**입니다.
@@ -38,7 +51,7 @@
 
 ---
 
-## 🎯 4. 이중 기준선 운영 시스템 (Dual-Threshold System)
+## 🎯 5. 이중 기준선 운영 시스템 (Dual-Threshold System)
 
 AI 모델은 오염 피해를 선제적으로 차단하기 위해 2단계의 경보 시스템을 가동합니다.
 
@@ -56,24 +69,24 @@ AI 모델은 오염 피해를 선제적으로 차단하기 위해 2단계의 경
 
 ---
 
-## 📊 5. 시각화 분석 (Data Visualization)
+## 📊 6. 시각화 분석 (Data Visualization)
 
-### 5.1 카테고리별 오염 기여도 분석
+### 6.1 카테고리별 오염 기여도 분석
 ![카테고리별 오염 기여도](./feature_importance_donut_Dadaepo.png)
 
-### 5.2 핵심 변수 15종 세부 중요도
+### 6.2 핵심 변수 15종 세부 중요도
 ![세부 중요도](./feature_importance_Dadaepo.png)
 
-### 5.3 정상/오염 예측 점수 분포도 (Log Scale)
+### 6.3 정상/오염 예측 점수 분포도 (Log Scale)
 ![점수 분포도](./dual_warning_kde_Dadaepo.png)
 
-### 5.4 이중 기준선 혼동 행렬 (Confusion Matrix)
+### 6.4 이중 기준선 혼동 행렬 (Confusion Matrix)
 ![혼동 행렬](./confusion_matrix_Dadaepo.png)
 
-### 5.5 오탐(FP) 방어 비교 분석
+### 6.5 오탐(FP) 방어 비교 분석
 ![오탐 비교](./roi_comparison_Dadaepo.png)
 
-### 5.6 실제 수질 vs AI 예측 트렌드 (시계열)
+### 6.6 실제 수질 vs AI 예측 트렌드 (시계열)
 ![시계열 트렌드](./timeseries_lineplot_Dadaepo.png)
 
 ---
