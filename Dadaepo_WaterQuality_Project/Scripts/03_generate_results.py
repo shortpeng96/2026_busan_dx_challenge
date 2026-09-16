@@ -30,6 +30,10 @@ final_auc = model_data['auc']
 t_yellow = model_data['t_yellow']
 t_red = model_data['t_red']
 features = model_data['features']
+rmsle = model_data.get('rmsle', 0.0)
+r2 = model_data.get('r2', 0.0)
+mae = model_data.get('mae', 0.0)
+model = model_data['model']
 model = model_data['model']
 
 preds_y = (y_pred >= t_yellow).astype(int)
@@ -437,6 +441,9 @@ md_report = f"""# 🌊 {BEACH_KOR} 해수욕장 수질 AI 예측 입수 통제 �
 | 지표 (Metrics) | 결과 (Result) | 비고 (Note) |
 | :--- | :--- | :--- |
 | **ROC-AUC** | **{final_auc:.3f}** | 5-fold CV, 하이브리드 모델 |
+| **RMSLE** | **{rmsle:.3f}** | 기하급수적 농도 증가(Log)를 고려한 오차율 |
+| **R² (설명력)** | **{r2:.3f}** | 수질 변동성 설명력 |
+| **MAE** | **{mae:.1f}** | 대장균 농도 절대 오차 (cfu/100ml) |
 | **학습 데이터** | **{len(y_true)}건** | 수질 검사 기록 총량 |
 | **오염 발생 빈도** | **{int(y_true.sum())}건** | 대장균/장구균 기준치 초과 사례 |
 
