@@ -1,1 +1,13 @@
 */Results/model.pkl
+
+# 불필요한 단발성 스크립트 및 메모 파일
+old_model.py
+*_cols.txt
+*_cols.json
+
+# 디버깅용 임시 파일
+error_analysis_dump.csv
+
+# 임시 데이터 폴더 및 대용량 원본(부이데이터)
+Data_Raw_New/
+부이데이터/
