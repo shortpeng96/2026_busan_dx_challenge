@@ -226,7 +226,7 @@ ax.text(0, 0, f'AUC\n{final_auc:.3f}', ha='center', va='center', fontsize=22, we
 ax.legend(wedges, cat_series.index, title="원인 카테고리", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
 ax.set_title(f'일광 해수욕장 - 카테고리별 오염 기여도', color=C_NAVY, weight='bold', fontsize=16)
 plt.tight_layout()
-plt.savefig(os.path.join(RES, f'feature_importance_donut_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor())
+plt.savefig(os.path.join(RES, f'feature_importance_donut_{BEACH}.png'), dpi=150, facecolor=fig.get_facecolor(), bbox_inches='tight')
 plt.close()
 
 # Confusion Matrix
