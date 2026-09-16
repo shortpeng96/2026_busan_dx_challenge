@@ -7,7 +7,7 @@ import numpy as np
 import os, pickle, warnings
 from sklearn.model_selection import StratifiedKFold
 from xgboost import XGBRegressor
-from sklearn.metrics import roc_auc_score, fbeta_score, recall_score
+from sklearn.metrics import roc_auc_score, fbeta_score, mean_squared_error, mean_absolute_error, r2_score
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.ensemble import RandomForestRegressor
@@ -116,6 +116,14 @@ else:
     final_auc = 0.5
 print(f"\n  [OK] Final AUC: {final_auc:.5f}")
 
+# Regression Metrics (E.coli)
+from math import sqrt
+rmsle = sqrt(mean_squared_error(y_target['log_ecoli'], preds_raw_all[:, 0]))
+r2 = r2_score(y_target['log_ecoli'], preds_raw_all[:, 0])
+mae = mean_absolute_error(np.expm1(y_target['log_ecoli']), np.expm1(preds_raw_all[:, 0]))
+
+print(f"  [OK] RMSLE: {rmsle:.4f}, R2: {r2:.4f}, MAE: {mae:.1f}")
+
 # 4. Compute Dual Thresholds
 baseline_fp = ((df.get('precip_daily', pd.Series([0]*len(df)))) >= 30.0).sum()
 if baseline_fp == 0: baseline_fp = 10
@@ -149,6 +157,9 @@ with open(model_path, 'wb') as f:
         'imputer': imputer,
         'features': best_feats,
         'auc': final_auc,
+        'rmsle': rmsle,
+        'r2': r2,
+        'mae': mae,
         't_yellow': t_yellow,
         't_red': t_red,
     }, f)
