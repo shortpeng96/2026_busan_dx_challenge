@@ -80,20 +80,6 @@ feature_table = safe_merge(feature_table, df_uv)
 if 'sewage_discharge' in df_sewage.columns:
     df_sewage = df_sewage.rename(columns={'sewage_discharge': 'suyeong_vol'})
 
-# Load Haeundae sewage treatment plant from Songjeong's raw data
-haeundae_plant_path = os.path.join(BASE, 'Songjeong_WaterQuality_Project', 'Data_Raw', '송정_인근_하수_방류량.csv')
-if os.path.exists(haeundae_plant_path):
-    try:
-        df_haeundae_plant = pd.read_csv(haeundae_plant_path, encoding='utf-8-sig')
-    except:
-        df_haeundae_plant = pd.read_csv(haeundae_plant_path, encoding='cp949', errors='replace')
-    if 'date' in df_haeundae_plant.columns:
-        df_haeundae_plant['date'] = pd.to_datetime(df_haeundae_plant['date'], errors='coerce')
-        df_haeundae_plant = df_haeundae_plant.dropna(subset=['date'])
-        if 'haeundae_sewage_discharge_m3_day' in df_haeundae_plant.columns:
-            df_haeundae_plant = df_haeundae_plant[['date', 'haeundae_sewage_discharge_m3_day']]
-            df_sewage = pd.merge(df_sewage, df_haeundae_plant, on='date', how='outer')
-
 feature_table = safe_merge(feature_table, df_sewage)
 feature_table = safe_merge(feature_table, df_river)
 feature_table = safe_merge(feature_table, df_visitor)
