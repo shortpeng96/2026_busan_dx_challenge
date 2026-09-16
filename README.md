@@ -88,7 +88,6 @@ python 03_generate_results.py
 2026_busan_dx_challenge/
 ├── README.md                      ← 본 문서
 ├── requirements.txt               ← 필요 라이브러리 목록
-├── Scripts/                       ← 공통 헬퍼 스크립트 모음
 ├── [해수욕장명]_WaterQuality_Project/
 │   ├── Data_Raw/                  ← 외부 수집 원시 데이터 (해양부이, 기상청, 수질관측 등)
 │   ├── Data_Processed/            ← 01_preprocess.py에 의해 생성되는 최종 학습용 CSV
